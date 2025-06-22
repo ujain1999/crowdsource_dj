@@ -1,17 +1,17 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import json
 from yt_dlp import YoutubeDL
 
+app = Flask(__name__, template_folder='../frontend/templates/')
 
-app = Flask(__name__)
-# CORS(app)
-# from flask_cors import CORS
-
-# This allows requests from any origin
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 queue = []
+
+@app.route('/', methods=['GET'])
+def home():
+    return render_template('index.html')
 
 @app.route('/api/suggestions', methods=['GET'])
 def get_suggestions():
