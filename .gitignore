@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+*.log
+
+# Flask
+instance/
+*.db
+*.sqlite3
+.env
+.env.*
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+*.virtualenv
+
+# Coverage / testing
+htmlcov/
+.coverage
+.tox/
+.nox/
+.pytest_cache/
+.cache/
+.mypy_cache/
+.dmypy.json
+.pyre/
+coverage.xml
+*.cover
+.nyc_output/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# React (if used)
+node_modules/
+build/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env.local
+.env.development
+.env.production
+.env.test
+
+# HTMX — no specific ignores, handled via templates/static, but include:
+*.tmp
+*.bak
+
+# Common front-end
+*.map
+*.tsbuildinfo
+
+# Optional: frontend in a separate folder
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+
+# Optional: backup and temp files
+*~
+*.swp
+*.swo
