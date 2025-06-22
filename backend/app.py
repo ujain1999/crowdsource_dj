@@ -3,7 +3,7 @@ from flask_cors import CORS
 import json
 from yt_dlp import YoutubeDL
 
-app = Flask(__name__, template_folder='../frontend/templates/')
+app = Flask(__name__, template_folder='../frontend/templates/', static_folder='../frontend/static/')
 
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
