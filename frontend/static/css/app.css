@@ -223,12 +223,73 @@
   .popover-item:first-child .popover-link:hover:after {
     border-bottom-color: #33C3F0; }
 }
-.sticky-header {
-  margin: 5%;
-  width: 100%;
+div.sticky{
   position: sticky;
   top: 0;
-  z-index: 1000; /* ensures it stays on top */
-  background-color: #eee; /* or any color */
-  padding: 1rem;
+  background-color: #fff;
+
+}
+thead.sticky{
+  position: sticky;
+  top: 150px;
+  background-color: #eee;
+  padding: 1%;
+}
+
+.player-container {
+  background: #eee;
+  padding-top: 20px;
+  padding-bottom: 20px;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  /* box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); */
+  /* width: 100%; */
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.control-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #fff;
+  transition: transform 0.2s;
+}
+
+.control-btn:hover {
+  transform: scale(1.1);
+}
+
+.progress-container {
+  flex-grow: 1;
+}
+
+#progress {
+  width: 90%;
+  appearance: none;
+  height: 5px;
+  background: #888;
+  border-radius: 3px;
+  outline: none;
+}
+
+#progress::-webkit-slider-thumb {
+  appearance: none;
+  height: 12px;
+  width: 12px;
+  background: #000;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.time {
+  font-size: 12px;
+  justify-content: space-between;
+  color: #aaa;
 }
