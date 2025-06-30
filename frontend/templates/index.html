@@ -1,12 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.5/dist/htmx.min.js"></script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crowdsource DJ</title>
+  <!-- Basic Page Needs -->
+  <meta charset="utf-8">
+  <title>Crowdsource DJ</title>
+  <meta name="description" content="">
+  <meta name="author" content="">
+  <!-- Mobile Specific Metas -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- FONT -->
+  <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
+  <!-- CSS -->
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/normalize.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/skeleton.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/app.css') }}">
 </head>
 <body>
-    <h1>Test</h1>
+  <div class="container">
+    <section class="header">
+      <h1>Crowdsource DJ</h1>
+    </section>
+    <div class="row">
+        <div class="eleven columns">
+          <input class="u-full-width" type="url" placeholder="Start with a song or playlist " id="search-or-url-input">
+        </div>
+        <div class="one column">
+          <input class="button-primary" id="search-btn" type="submit" value="Play">
+        </div>
+    </div>
+
+
+
+    <!-- <div class="navbar-spacer"></div>
+    <div class="navbar">
+        <div class="container">
+            <ul class="navbar-list">
+                <li class="navbar-item">
+                  <a class="navbar-link">Item 1</a>
+                </li>
+                <li class="navbar-item">
+                  <a class="navbar-link">Item 1</a>
+                </li>
+                <li class="navbar-item">
+                  <a class="navbar-link">Item 1</a>
+                </li>
+                <li class="navbar-item">
+                  <a class="navbar-link">Item 1</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+  </div> -->
 </body>
+<script src="../static/js/main.js"></script>
 </html>
