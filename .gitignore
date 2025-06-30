@@ -76,3 +76,5 @@ frontend/dist/
 *~
 *.swp
 *.swo
+
+*_bkup.py

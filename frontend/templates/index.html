@@ -13,15 +13,44 @@
   <!-- CSS -->
   <link rel="stylesheet" href="{{ url_for('static',filename='css/normalize.css') }}">
   <link rel="stylesheet" href="{{ url_for('static',filename='css/skeleton.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static',filename='css/app.css') }}">
 </head>
 <body>
   <div class="container">
+    <section class="header">
+      <h1>Crowdsource DJ</h1>
+    </section>
     <div class="row">
-      <div class="one-half column" style="margin-top: 25%">
-        <h4>Basic Page</h4>
-        <p>This index.html page is a placeholder with the CSS, font and favicon. It's just waiting for you to add some content! If you need some help hit up the <a href="http://www.getskeleton.com">Skeleton documentation</a>.</p>
-      </div>
+        <div class="eleven columns">
+          <input class="u-full-width" type="url" placeholder="Start with a song or playlist " id="search-or-url-input">
+        </div>
+        <div class="one column">
+          <input class="button-primary" id="search-btn" type="submit" value="Play">
+        </div>
     </div>
-  </div>
+
+
+
+    <!-- <div class="navbar-spacer"></div>
+    <div class="navbar">
+        <div class="container">
+            <ul class="navbar-list">
+                <li class="navbar-item">
+                  <a class="navbar-link">Item 1</a>
+                </li>
+                <li class="navbar-item">
+                  <a class="navbar-link">Item 1</a>
+                </li>
+                <li class="navbar-item">
+                  <a class="navbar-link">Item 1</a>
+                </li>
+                <li class="navbar-item">
+                  <a class="navbar-link">Item 1</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+  </div> -->
 </body>
+<script src="../static/js/main.js"></script>
 </html>
