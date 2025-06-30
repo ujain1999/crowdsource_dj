@@ -78,3 +78,5 @@ frontend/dist/
 *.swo
 
 *_bkup.*
+normalize.css
+skeleton.css
