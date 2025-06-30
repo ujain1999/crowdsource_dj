@@ -77,4 +77,6 @@ frontend/dist/
 *.swp
 *.swo
 
-*_bkup.py
+*_bkup.*
+normalize.css
+skeleton.css
