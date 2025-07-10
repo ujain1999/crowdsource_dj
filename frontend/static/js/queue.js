@@ -9,6 +9,7 @@ class Queue {
 
     set items(newQueue) {
         this._queue = newQueue;
+        // this.onUpdate();
         this.onUpdate();
     }
 
@@ -18,36 +19,45 @@ class Queue {
 
     push(item) {
         this._queue.push(item);
+        // this.onUpdate();
         this.onUpdate();
     }
 
     onUpdate() {
-        console.log("Queue updated:", this._queue);
-        const queueDiv = document.getElementById("queue-div");
+        const queueDiv = document.getElementById('queue-div');
+
         if (!this.length) {
             queueDiv.innerHTML = ""
             return
         }
-        if (this.length) {
-            const queueTable = document.createElement("table");
-            queueTable.classList.add("u-full-width");
-            const thead = document.createElement("thead");
-            thead.id = "queue-thead"
-            thead.classList.add("sticky")
-            const headerRow = document.createElement("tr");
-            headerRow.innerHTML = "<th></th><th>Title</th><th>Artist</th>";
-            thead.appendChild(headerRow);
-            queueTable.appendChild(thead);
+        else {
+            const tableHTML = `
+                    <table id="draggableTable" class="u-full-width">
+                        <thead id="queue-thead" class="sticky">
+                            <tr>
+                                <th></th>
+                                <th>Title</th>
+                                <th>Artist</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${this._queue.map((song, index) => `
+                                <tr draggable="true" data-index="${index}">
+                                    <td class="drag-handle">⋮⋮</td>
+                                    <td>${song.title}</td>
+                                    <td>${song.artist}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
 
-            const tbody = document.createElement("tbody");
-            this._queue.forEach((song, index) => {
-                const row = document.createElement("tr");
-                row.innerHTML = `<td>${index + 1}</td><td>${song.title}</td><td>${song.artist}</td>`;
-                tbody.appendChild(row);
-            });
-            queueTable.appendChild(tbody);
-            queueDiv.replaceChildren(queueTable);
-            return;
+            queueDiv.innerHTML = tableHTML;
+
+            // Re-initialize drag functionality after rendering
+            if (window.draggableTable) {
+                window.draggableTable.initializeDragHandlers();
+            }
         }
     }
 }

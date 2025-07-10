@@ -1,5 +1,10 @@
 const queue = new Queue();
-const player = new AudioPlayer(queue);
+window.queue = queue;
+const draggableTable = new DraggableTable('queue-div', queue);
+window.draggableTable = draggableTable;
+const player = new AudioPlayer();
+window.player = player;
+
 
 function isValidURL(str) {
   try {
@@ -44,16 +49,15 @@ const fetchData = () => {
 }
 
 document.getElementById('search-btn').addEventListener('click', fetchData);
-document.getElementById('play-pause').onclick = () => player.togglePlayPause();
+document.getElementById('play-pause').onclick = () => player.togglePlay();
 document.getElementById('next').onclick = () => player.next();
-document.getElementById('previous').onclick = () => player.prev();
+document.getElementById('previous').onclick = () => player.previous();
 
 const audio = document.getElementById('audio');
 
 audio.addEventListener('play', updatePlayPauseUI);
 audio.addEventListener('pause', updatePlayPauseUI);
 audio.addEventListener('timeupdate', updateProgressUI);
-audio.addEventListener('ended', handleTrackEnd);
 audio.addEventListener('loadedmetadata', updateDurationUI);
 
 document.getElementById('progress').addEventListener('input', (e) => {
