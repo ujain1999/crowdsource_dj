@@ -4,7 +4,7 @@ from ytmusicapi import YTMusic
 
 def search_yt_music(query):
     ydl_opts = {
-        'format': 'bestaudio/best',
+        'format': 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/best',
         'quiet': True,
         'no_warnings': True,
         'skip_download': True,
@@ -29,7 +29,7 @@ def get_youtube_audio(youtube_url):
         return {"error": "Missing URL"}
 
     ydl_opts = {
-        'format': 'bestaudio/best',
+        'format': 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/best',
         'quiet': True,
         'no_warnings': True,
         'skip_download': True,

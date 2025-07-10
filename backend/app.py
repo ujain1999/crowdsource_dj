@@ -1,14 +1,24 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-import json
-from yt_dlp import YoutubeDL
+from models import db
+import os
 
 from utils import get_youtube_audio, search_yt_music
 
-app = Flask(__name__, template_folder='../frontend/templates/', static_folder='../frontend/static/')
 
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+def create_app():
+    app = Flask(__name__, template_folder='../frontend/templates/', static_folder='../frontend/static/')
 
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///app.db')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    db.init_app(app)
+    with app.app_context():
+        db.create_all()
+    
+    return app
+
+app = create_app()
 @app.route('/', methods=['GET'])
 def home():
     return render_template('index.html')

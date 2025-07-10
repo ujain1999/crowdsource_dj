@@ -44,6 +44,9 @@ coverage.xml
 # VS Code
 .vscode/
 
+# Zed
+.ropeproject/
+
 # macOS
 .DS_Store
 
