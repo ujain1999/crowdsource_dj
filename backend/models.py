@@ -13,9 +13,14 @@ class AppModel(db.Model):
 class Room(AppModel):
     __tablename__ = 'room'
     room_id = db.Column(db.String(16), unique=True, nullable=False)
-    queue = db.Column(db.JSON, default=[])
+    room_json = db.Column(db.JSON, default=[])
+
+    def __init__(self):
+        self.room_id = self.generate_unique_room_id()
+        self.room_json = []
 
 
+    @staticmethod
     def generate_unique_room_id():
         while True:
             room_id = ''.join(random.choices(string.ascii_lowercase, k=16))

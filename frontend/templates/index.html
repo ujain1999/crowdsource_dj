@@ -26,51 +26,23 @@
       <section class="header">
         <h1>Crowdsource DJ</h1>
       </section>
+      <br><br>
       <div class="row">
-        <div class="nine columns">
-          <input class="u-full-width" type="url" placeholder="Start with a song or playlist " id="search-or-url-input">
+        <div class="two columns">
+          <input class="button-primary u-full-width" id="new-room-btn" type="button" value="Create">
         </div>
-        <div class="three columns">
-          <input class="button-primary u-full-width" id="search-btn" type="submit" value="Add to Queue">
+        <div class="eight columns">
+          <input class="u-full-width" type="url" placeholder="Enter code or link" id="room-id-input">
+        </div>
+        <div class="two columns">
+          <input class="button u-full-width" id="join-existing" type="button" value="Join">
         </div>
       </div>
     </div>
     <div id="queue-div"></div>
 
   </div>
-  <div class="player-container row">
-    <audio id="audio"></audio>
-    <div class="controls">
-      <div class="three columns">
-        <button id="previous" class="control-btn">
-          <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" fill-rule="evenodd" clip-rule="evenodd">
-            <path d="M22 24l-18-12 18-12v24zm-19-24v24h-1v-24h1zm2.803 12l15.197 10.132v-20.263l-15.197 10.131z" />
-          </svg>
-        </button>
-        <button id="play-pause" class="control-btn">
-          <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" fill-rule="evenodd" clip-rule="evenodd">
-            <path d="M23 12l-22 12v-24l22 12zm-21 10.315l18.912-10.315-18.912-10.315v20.63z" />
-          </svg>
-        </button>
-        <button id="next" class="control-btn">
-          <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" fill-rule="evenodd" clip-rule="evenodd">
-            <path d="M2 24l18-12-18-12v24zm19-24v24h1v-24h-1zm-2.803 12l-15.197 10.132v-20.263l15.197 10.131z" />
-          </svg>
-        </button>
-      </div>
-      <div class="progress-container nine columns">
-        <input type="range" id="progress" value="0" min="0" step="0.1" />
-        <div class="time">
-          <span id="current-time">0:00</span> /
-          <span id="duration">0:00</span>
-        </div>
-      </div>
-    </div>
-  </div>
 </body>
-<script src="../static/js/draggableTable.js"></script>
-<script src="../static/js/audioPlayer.js"></script>
-<script src="../static/js/queue.js"></script>
-<script src="../static/js/main.js"></script>
+<script src="../static/js/home.js"></script>
 
 </html>
