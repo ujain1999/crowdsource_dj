@@ -53,3 +53,7 @@ def get_youtube_audio(youtube_url):
             return metadata
     except Exception as e:
         return {"error": "Failed to fetch audio", "details": str(e)}
+
+def clean_room_id(room_id):
+    room_id = room_id.replace(' ', '').replace('-', '').lower()
+    return room_id

@@ -6,7 +6,7 @@ const player = new AudioPlayer();
 window.player = player;
 
 
-function isValidURL(str) {
+const isValidURL = (str) => {
   try {
     new URL(str);
     return true;
@@ -15,7 +15,7 @@ function isValidURL(str) {
   }
 }
 
-function isPlaylist(str) {
+const isPlaylist = (str) => {
     const urlParams = new URLSearchParams(str);
     if (urlParams.get('list')){
         return urlParams.get('list')
@@ -33,7 +33,8 @@ const fetchData = () => {
             body: JSON.stringify({
                 type : isValidURL(inputValue) ? "url" : "query",
                 inputText : inputValue,
-                playlist : isPlaylist(inputValue)
+                playlist : isPlaylist(inputValue),
+                room_id : location.pathname.slice(1)
             }),
             headers: {
                 "Content-type": "application/json; charset=UTF-8"
@@ -47,6 +48,31 @@ const fetchData = () => {
     }
     // console.log(queue)
 }
+
+const initialFetch = () => {
+    const room_id = location.pathname.slice(1);
+    fetch("/api/queue", {
+        method: "POST",
+        body: JSON.stringify({
+            "room_id" : room_id
+        }),
+        headers: {
+            "Content-type": "application/json; charset=UTF-8"
+        }
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        console.log(data);
+        if (data.hasOwnProperty('queue')){
+            if (data['queue'].length > 0){
+                queue.items = data['queue'];
+            }
+        }
+        console.log(queue);
+    });
+}
+
+window.onload = initialFetch();
 
 document.getElementById('search-btn').addEventListener('click', fetchData);
 document.getElementById('play-pause').onclick = () => player.togglePlay();

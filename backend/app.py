@@ -4,7 +4,7 @@ from models import db
 import os
 import json
 
-from utils import get_youtube_audio, search_yt_music
+from utils import get_youtube_audio, search_yt_music, clean_room_id
 from models import Room
 
 
@@ -36,33 +36,39 @@ def room():
         data = request.json
         if data['action'] == 'create':
             room = Room()
+            db.session.add(room)
+            db.session.commit()
             return jsonify({'room_id': room.room_id})
-        elif data['action'] == 'join':
-            room = Room.query.filter_by(room_id=data['room_id']).first()
-            if room:
-                return jsonify({'room_id': room.room_id})
-            else:
-                return jsonify({'error': 'Room not found'}), 404
-    elif request.method == 'GET':
-        room_id = request.args.get('room_id', None)
-        if room_id:
-            try:
-                room = Room.query.filter_by(room_id=room_id).first()
-                return jsonify({'room_id': room_id, 'room_json':room.room_json})
-            except Exception as e:
-                return jsonify({'error': 'Room not found', 'details' : str(e)}), 404
-        else:
-            return jsonify({'error': 'Missing room_id'}), 400
 
     
 @app.route('/<room_id>', methods=['GET'])
 def room_page(room_id):
-    return render_template('room.html')
+    room_id = clean_room_id(room_id)
+    print(room_id)
+    room = Room.query.filter_by(room_id=room_id).first()
+    if room:
+        room_json = room.room_json
+        return render_template('room.html')
+    else:
+        return redirect(url_for('home'))
 
+
+@app.route('/api/queue', methods=['POST'])
+def queue():
+    if request.method == 'POST':
+        data = request.json
+        room_id = clean_room_id(data['room_id'])
+        room = Room.query.filter_by(room_id=room_id).first()
+        if room:
+            room_json = room.room_json
+            return jsonify(room_json)
+        else:
+            return jsonify({'error': 'Room not found'}), 404
 
 @app.route('/api/search', methods=['POST'])
 def search():
     data = request.json 
+    print(data)
     if data['type'] == 'url':
         if data['playlist']:
             metadata = {}
@@ -74,10 +80,11 @@ def search():
     if 'error' in metadata:
         return jsonify(metadata), 500
     else:
-        room = Room.query.filter_by(room_id=data['room_id']).first()
-        room_json = json.loads(room.room_json)
+        room_id = clean_room_id(data['room_id'])
+        room = Room.query.filter_by(room_id=room_id).first()
+        room_json = room.room_json
         room_json['queue'] = room_json.get('queue', []) + [metadata]
-        room.room_json = json.dumps(room_json)
+        room.room_json = room_json
         db.session.commit()
         return jsonify(metadata)
 

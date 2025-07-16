@@ -214,7 +214,7 @@ class AudioPlayer {
     }
 }
 
-function updatePlayPauseUI() {
+const updatePlayPauseUI = () => {
     const btn = document.getElementById('play-pause');
     if (audio.paused) {
         // btn.textContent = 'Play';
@@ -225,7 +225,7 @@ function updatePlayPauseUI() {
     }
 }
 
-function updateProgressUI() {
+const updateProgressUI = () => {
     const progressBar = document.getElementById('progress');
     progressBar.value = audio.currentTime;
     const currTime = document.getElementById("current-time");
@@ -235,7 +235,7 @@ function updateProgressUI() {
 }
 
 
-function updateDurationUI() {
+const updateDurationUI = () => {
     document.getElementById('progress').max = audio.duration;
     const duration = document.getElementById("duration");
     const date = new Date(null);
