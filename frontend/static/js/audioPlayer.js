@@ -13,6 +13,16 @@ class AudioPlayer {
         this.audio.addEventListener('error', (e) => this.handleError(e));
     }
 
+    toJSON() {
+        return {
+            roomID : location.pathname.slice(1),
+            currentIndex : this.currentIndex,
+            isPlaying : this.isPlaying,
+            queue : this.queue.items,
+            currentTimeStamp: this.audio.currentTime
+        }
+    }
+
     // Load a track by index
     loadTrack(index) {
         if (index < 0 || index >= this.queue.length() || this.queue.length() === 0) {
@@ -28,16 +38,24 @@ class AudioPlayer {
         return true;
     }
 
-    play() {
+    play(sync=false) {
+        if (!sync){
+            socket.emit('play', this.toJSON());
+        }
+        
         if (this.queue.length() === 0) {
             console.warn('No tracks in queue');
             return false;
         }
 
-        // If no track is loaded, load the first one
         if (!this.audio.src && this.queue.length() > 0) {
             this.loadTrack(0);
         }
+        // socket.emit('play', {
+        //    "roomID" : location.pathname.slice(1),
+        //   "track" : this.getCurrentTrack(),
+        //    "index" : this.getCurrentIndex()
+        //})
 
         const playPromise = this.audio.play();
         
@@ -50,7 +68,11 @@ class AudioPlayer {
         return true;
     }
 
-    pause() {
+    pause(sync=false) {
+        if (!sync){
+            socket.emit('pause', this.toJSON());
+        }
+        // socket.emit('pause', this.toJSON());
         this.audio.pause();
     }
 
@@ -106,7 +128,6 @@ class AudioPlayer {
         //     }
         //     return false;
         // }
-        debugger;
         if (this.queue.length() === 0) {
             console.warn('No tracks in queue');
             return false;
@@ -243,16 +264,13 @@ const updateDurationUI = () => {
     duration.innerHTML = date.toISOString().slice(14,19);
 }
 
-// Example usage:
-// const audioElement = document.getElementById('audio');
-// const queue = new Queue(); // Your existing queue instance
-// const player = new AudioPlayer(audioElement, queue);
-
-// Add some songs to the queue (example structure)
-// queue.push({ title: 'Song 1', artist: 'Artist 1', url: 'path/to/song1.mp3' });
-// queue.push({ title: 'Song 2', artist: 'Artist 2', url: 'path/to/song2.mp3' });
-
-// Attach to UI buttons
-// document.getElementById('play-pause-btn').onclick = () => player.togglePlay();
-// document.getElementById('next-btn').onclick = () => player.next();
-// document.getElementById('previous-btn').onclick = () => player.previous();
+document.getElementById('progress').addEventListener('change', (e) => {
+    audio.currentTime = e.target.value;
+    socket.emit('seek',{
+        roomID : location.pathname.slice(1),
+        currentIndex : player.currentIndex,
+        isPlaying : player.isPlaying,
+        queue : player.queue.items,
+        currentTimeStamp: player.audio.currentTime
+    });
+});

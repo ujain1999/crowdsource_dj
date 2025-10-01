@@ -1,3 +1,6 @@
+const socket = io();
+window.socket = socket;
+
 document.getElementById("new-room-btn").addEventListener("click", () => {
     fetch("/api/room", {
         method: "POST",
@@ -17,7 +20,8 @@ document.getElementById("new-room-btn").addEventListener("click", () => {
 })
 
 document.getElementById("join-room-btn").addEventListener("click", () => {
-    location.href = '/' + document.getElementById("room-id-input").value;
+    debugger;
+    location.href = '/' + document.getElementById("room-id-input").value.replace(/-/g, '');
 })
 
 const roomIdInput = document.getElementById('room-id-input');

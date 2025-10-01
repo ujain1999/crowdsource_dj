@@ -5,6 +5,10 @@ window.draggableTable = draggableTable;
 const player = new AudioPlayer();
 window.player = player;
 
+const socket = io();
+window.socket = socket;
+socket.emit('join-room', location.pathname.slice(1));
+
 
 const isValidURL = (str) => {
   try {
@@ -51,6 +55,10 @@ const fetchData = () => {
 
 const initialFetch = () => {
     const room_id = location.pathname.slice(1);
+
+    // Join the socket room for real-time updates
+    socket.emit('join', { room: room_id });
+
     fetch("/api/queue", {
         method: "POST",
         body: JSON.stringify({

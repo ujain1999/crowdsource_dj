@@ -3,6 +3,7 @@ from yt_dlp import YoutubeDL
 from ytmusicapi import YTMusic
 
 def search_yt_music(query):
+    # import ipdb; ipdb.set_trace()
     ydl_opts = {
         'format': 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/best',
         'quiet': True,
@@ -27,7 +28,7 @@ def search_yt_music(query):
 def get_youtube_audio(youtube_url):
     if not youtube_url:
         return {"error": "Missing URL"}
-
+    # import ipdb; ipdb.set_trace()
     ydl_opts = {
         'format': 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/best',
         'quiet': True,

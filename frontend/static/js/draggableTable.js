@@ -143,6 +143,8 @@ class DraggableTable {
             player.currentIndex = player.currentIndex;
         }
 
+        socket.emit('update-queue', player.toJSON);
+
         console.log(`Item moved from position ${fromIndex} to ${toIndex}`);
         console.log('Updated queue:', this.queue.items);
     }
