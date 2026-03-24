@@ -3,6 +3,10 @@
 
 A music streaming application where users can create or join rooms to listen to music together with synchronized playback and chat.
 
+<br>
+
+> WIP: Song reccomendations
+
 ## Features
 
 - **Room Management**: Create rooms with unique 12-character codes or join existing ones
