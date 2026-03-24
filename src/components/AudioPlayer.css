@@ -1,0 +1,178 @@
+.audio-player {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background-color: var(--bg-secondary-light);
+  min-height: 90px;
+}
+
+html.dark-mode .audio-player {
+  background-color: var(--bg-secondary-dark);
+}
+
+.now-playing {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  min-width: 220px;
+  max-width: 220px;
+}
+
+.thumbnail {
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.song-info {
+  min-width: 0;
+}
+
+.song-info h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song-info p {
+  margin: 0.15rem 0 0 0;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.no-song {
+  color: var(--text-light);
+  opacity: 0.5;
+  font-size: 0.9rem;
+}
+
+html.dark-mode .no-song {
+  color: var(--text-dark);
+}
+
+.player-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 0 1.5rem;
+}
+
+.player-controls {
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.play-pause,
+.prev-btn,
+.next-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: transparent;
+  color: var(--text-light);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  opacity: 0.7;
+}
+
+html.dark-mode .play-pause,
+html.dark-mode .prev-btn,
+html.dark-mode .next-btn {
+  color: var(--text-dark);
+}
+
+.play-pause {
+  background-color: var(--text-light);
+  color: var(--bg-light);
+  opacity: 1;
+}
+
+html.dark-mode .play-pause {
+  background-color: var(--text-dark);
+  color: var(--bg-dark);
+}
+
+.play-pause:hover,
+.prev-btn:hover:not(:disabled),
+.next-btn:hover:not(:disabled) {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.prev-btn:disabled,
+.next-btn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.time {
+  font-size: 0.7rem;
+  min-width: 32px;
+  opacity: 0.5;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-bar {
+  flex: 1;
+  cursor: pointer;
+  height: 3px;
+  border-radius: 1.5px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border-light);
+}
+
+html.dark-mode .progress-bar {
+  background: var(--border-dark);
+}
+
+.progress-bar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-light);
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+html.dark-mode .progress-bar::-webkit-slider-thumb {
+  background: var(--text-dark);
+}
+
+.progress-bar::-moz-range-thumb {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-light);
+  cursor: pointer;
+  opacity: 0.8;
+  border: none;
+}
+
+html.dark-mode .progress-bar::-moz-range-thumb {
+  background: var(--text-dark);
+}

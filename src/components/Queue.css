@@ -1,0 +1,183 @@
+.queue {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.queue h2 {
+  margin: 0;
+  padding: 1rem 1rem 0.5rem 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.empty-queue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  opacity: 0.5;
+  text-align: center;
+  padding: 1rem;
+}
+
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  flex: 1;
+  padding: 0 0.75rem 0.75rem 0.75rem;
+}
+
+.queue-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: var(--bg-tertiary-light);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+html.dark-mode .queue-item {
+  background-color: var(--bg-tertiary-dark);
+}
+
+.queue-item.muted {
+  opacity: 0.55;
+}
+
+.queue-item.muted:hover {
+  opacity: 0.75;
+}
+
+.queue-item:hover:not(.muted) {
+  background-color: var(--bg-light);
+}
+
+html.dark-mode .queue-item:hover:not(.muted) {
+  background-color: #3a3a3a;
+}
+
+.queue-item.playing {
+  background-color: var(--accent);
+  color: white;
+}
+
+.queue-item.playing .queue-title,
+.queue-item.playing .queue-artist,
+.queue-item.playing .queue-position {
+  color: white;
+}
+
+.queue-item.dragging {
+  opacity: 0.3 !important;
+}
+
+.queue-item-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.queue-text {
+  min-width: 0;
+}
+
+.queue-position {
+  font-weight: 600;
+  opacity: 0.5;
+  min-width: 24px;
+  font-size: 0.8rem;
+}
+
+.queue-item.playing .queue-position {
+  color: white;
+  opacity: 1;
+}
+
+.queue-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-artist {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.drag-handle {
+  cursor: grab;
+  opacity: 0.4;
+  transition: opacity 0.2s;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drag-handle:hover {
+  opacity: 0.8;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.queue-actions button {
+  padding: 0.35rem;
+  background: transparent;
+  color: var(--text-light);
+  border: none;
+  border-radius: 6px;
+  opacity: 0.4;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+html.dark-mode .queue-actions button {
+  color: var(--text-dark);
+}
+
+.queue-actions button:hover {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+html.dark-mode .queue-actions button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.remove-btn {
+  color: #999 !important;
+}
+
+.remove-btn:hover {
+  color: #666 !important;
+  background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+html.dark-mode .remove-btn:hover {
+  color: #ccc !important;
+}
