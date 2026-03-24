@@ -1,0 +1,155 @@
+.chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.chat h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.25rem;
+}
+
+.empty-chat {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  font-size: 0.9rem;
+}
+
+.message {
+  padding: 0.6rem 0.75rem;
+  background-color: var(--bg-tertiary-light);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+html.dark-mode .message {
+  background-color: var(--bg-tertiary-dark);
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.username {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.timestamp {
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+
+.message-content {
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.chat-lock {
+  padding: 0.75rem;
+  text-align: center;
+  background-color: var(--bg-tertiary-light);
+  border-radius: 8px;
+  opacity: 0.7;
+}
+
+html.dark-mode .chat-lock {
+  background-color: var(--bg-tertiary-dark);
+}
+
+.chat-lock p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.chat-auth-btn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.5;
+  padding: 0;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.chat-auth-btn:hover {
+  opacity: 1;
+}
+
+.chat-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.chat-error {
+  font-size: 0.75rem;
+  color: #dc3545;
+}
+
+.input-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background-color: var(--bg-tertiary-light);
+  color: var(--text-light);
+  font-size: 0.85rem;
+}
+
+html.dark-mode .chat-input input {
+  border-color: var(--border-dark);
+  background-color: var(--bg-tertiary-dark);
+  color: var(--text-dark);
+}
+
+.chat-input input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.chat-input button {
+  padding: 0.5rem;
+  background-color: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-input button:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.chat-input button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

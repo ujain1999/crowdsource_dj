@@ -1,30 +1,68 @@
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text, Enum
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
 from datetime import datetime
-import random, string
+import enum
 
-db = SQLAlchemy()
+Base = declarative_base()
 
-class AppModel(db.Model):
-    __abstract__ = True
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    created_dt = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_dt = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-class Room(AppModel):
-    __tablename__ = 'room'
-    room_id = db.Column(db.String(12), unique=True, nullable=False)
-    # room_json = db.Column(db.JSON, default={})
-    room_json = db.Column(MutableDict.as_mutable(db.JSON), default={})
-
-    def __init__(self):
-        self.room_id = self.generate_unique_room_id()
-        self.room_json = {}
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(String, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=True)
+    hashed_password = Column(String, nullable=True)
+    is_guest = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    rooms = relationship("Room", back_populates="admin")
+    messages = relationship("Message", back_populates="user")
 
 
-    @staticmethod
-    def generate_unique_room_id():
-        while True:
-            room_id = ''.join(random.choices(string.ascii_lowercase, k=12))
-            if not Room.query.filter_by(room_id=room_id).first():
-                return room_id
+class Room(Base):
+    __tablename__ = "rooms"
+    
+    code = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    admin_id = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    admin = relationship("User", back_populates="rooms")
+    queue = relationship("QueueItem", back_populates="room", cascade="all, delete-orphan")
+    messages = relationship("Message", back_populates="room", cascade="all, delete-orphan")
+
+
+class QueueItem(Base):
+    __tablename__ = "queue_items"
+    
+    id = Column(String, primary_key=True, index=True)
+    room_code = Column(String, ForeignKey("rooms.code"), nullable=False)
+    song_id = Column(String, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    artist = Column(String, nullable=False)
+    duration = Column(Float, nullable=False)
+    thumbnail = Column(String, nullable=True)
+    url = Column(String, nullable=False)
+    added_by = Column(String, nullable=False)
+    position = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    room = relationship("Room", back_populates="queue")
+
+
+class Message(Base):
+    __tablename__ = "messages"
+    
+    id = Column(String, primary_key=True, index=True)
+    room_code = Column(String, ForeignKey("rooms.code"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="messages")
+    room = relationship("Room", back_populates="messages")
