@@ -130,3 +130,10 @@ npm run type-check
 # Build for production
 npm run build
 ```
+
+## Future Improvements
+- Reccomendations
+- Autoplay
+- Keyboard navigation
+- Better admin controls
+- Voteskip functionality
