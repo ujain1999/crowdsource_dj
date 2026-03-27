@@ -41,20 +41,20 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
   const [externalPlaybackEvent, setExternalPlaybackEvent] = useState<PlaybackEvent | null>(null)
   const [lastSkipEvent, setLastSkipEvent] = useState<any>(null)
   const [showCopied, setShowCopied] = useState(false)
+  const [syncPending, setSyncPending] = useState(false)
   const wsManagerRef = React.useRef<WebSocketManager | null>(null)
   const initializingRef = React.useRef(false)
   const initialPlaybackStateRef = React.useRef<any>(null)
   const queueRef = React.useRef<Song[]>([])
+  const currentSongRef = React.useRef<Song | null>(null)
 
-  // Auto-play when queue changes and current song is not set
   useEffect(() => {
-    // Update queue ref whenever queue state changes
     queueRef.current = queue
-    
-    if (queue.length > 0 && !currentSong) {
-      setCurrentSong(queue[0])
-    }
-  }, [queue, currentSong, setCurrentSong])
+  }, [queue])
+
+  useEffect(() => {
+    currentSongRef.current = currentSong
+  }, [currentSong])
 
   // Sync initial playback state once queue is loaded
   useEffect(() => {
@@ -63,18 +63,18 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
     }
 
     const state = initialPlaybackStateRef.current
-    console.log('🔄 Syncing initial playback state with loaded queue:', state)
+    console.log('Syncing initial playback state with loaded queue:', state)
     
     if (state.current_song_id) {
       const song = queue.find(s => s.id === state.current_song_id)
       if (song) {
-        console.log('✅ Found initial song:', song.title)
+        console.log('Found initial song:', song.title)
         setCurrentSong(song)
         
         // Sync playback position
         setTimeout(() => {
           if (state.current_time > 0) {
-            console.log('📍 Seeking to', state.current_time)
+            console.log('Seeking to', state.current_time)
             setExternalPlaybackEvent({
               type: 'seek',
               current_time: state.current_time
@@ -82,14 +82,14 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
           }
           
           if (state.is_playing) {
-            console.log('▶️ Playing from position', state.current_time)
+            console.log('Playing from position', state.current_time)
             setExternalPlaybackEvent({
               type: 'play',
               current_song_id: state.current_song_id,
               current_time: state.current_time
             })
           } else if (state.current_time > 0) {
-            console.log('⏸️ Paused at position', state.current_time)
+            console.log('Paused at position', state.current_time)
             setExternalPlaybackEvent({
               type: 'pause',
               current_time: state.current_time
@@ -97,7 +97,7 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
           }
         }, 100)
       } else {
-        console.error('❌ Initial song not found in queue:', state.current_song_id)
+        console.error('Initial song not found in queue:', state.current_song_id)
       }
     }
     
@@ -109,16 +109,16 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
   useEffect(() => {
     if (!lastSkipEvent) return
     
-    console.log('🔄 Processing skip event with current queue:', lastSkipEvent)
+    console.log('Processing skip event with current queue:', lastSkipEvent)
     console.log('Queue IDs:', queue.map(s => s.id))
     
     if (lastSkipEvent.current_song_id) {
       const song = queue.find(s => s.id === lastSkipEvent.current_song_id)
       if (song) {
-        console.log('✅ Skip: Found song', song.title)
+        console.log('Skip: Found song', song.title)
         setCurrentSong(song)
       } else {
-        console.error('❌ Skip: Song not found with ID:', lastSkipEvent.current_song_id)
+        console.error('Skip: Song not found with ID:', lastSkipEvent.current_song_id)
       }
     }
     
@@ -157,9 +157,21 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
         const roomData = await api.getRoomDetails(roomCode)
         setRoomName(roomData.name)
 
-        // Load existing queue
+        // Load existing queue (update ref immediately so WebSocket callback can use it)
         if (roomData.queue && roomData.queue.length > 0) {
           console.log('Loading existing queue:', roomData.queue)
+          const queueItems = roomData.queue.map((song: any) => ({
+            id: song.id,
+            song_id: song.song_id,
+            title: song.title,
+            artist: song.artist,
+            duration: song.duration,
+            thumbnail: song.thumbnail,
+            url: song.url,
+            added_by: song.added_by,
+            position: song.position
+          }))
+          queueRef.current = queueItems
           roomData.queue.forEach((song: any) => addToQueue(song))
         }
 
@@ -179,10 +191,36 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
             console.log('Connected to room:', data)
             setRoomUsers(data.users.map((u: string) => ({ id: u, username: u })))
             
-            // Store playback state to sync after queue is ready
-            if (data.playback_state) {
-              initialPlaybackStateRef.current = data.playback_state
-              console.log('Received initial playback state, will sync after queue loads:', data.playback_state)
+            // Sync immediately if queue is ready (check ref which updates immediately)
+            if (data.playback_state && data.playback_state.current_song_id) {
+              const state = data.playback_state
+              const song = queueRef.current.find(s => s.id === state.current_song_id)
+              
+              if (song) {
+                console.log('Immediate sync: Found song', song.title, 'at time', state.current_time)
+                setCurrentSong(song)
+                setSyncPending(true)
+                
+                // Direct DOM manipulation to sync audio - bypass React state
+                setTimeout(() => {
+                  const audio = document.querySelector('audio') as HTMLAudioElement
+                  if (audio) {
+                    audio.src = song.url
+                    audio.currentTime = state.current_time
+                    console.log('Set audio.currentTime to', state.current_time)
+                    if (state.is_playing) {
+                      audio.play().catch((e: any) => {
+                        if (e.name !== 'AbortError') console.error('Play error:', e)
+                      })
+                      console.log('Playing')
+                    }
+                  }
+                  setSyncPending(false)
+                }, 50)
+              } else {
+                console.log('Queue not ready in callback, storing for sync effect')
+                initialPlaybackStateRef.current = state
+              }
             }
           },
           onUserJoined: (data) => {
@@ -226,11 +264,16 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
           },
           onSongRemoved: (data) => {
             console.log('=== Song removed event received ===', data)
+            const removedSongId = data.song_id
+            const wasPlaying = currentSongRef.current?.id === removedSongId
+            
+            // Find the index of the removed song in current queue for determining next song
+            const removedIndex = queueRef.current.findIndex(s => s.id === removedSongId)
+            console.log('Song removed. wasPlaying:', wasPlaying, 'removedIndex:', removedIndex, 'currentSong:', currentSongRef.current?.id)
+            
             // Reload room to get fresh queue state from backend
             api.getRoomDetails(roomCode).then(roomData => {
-              // Clear current queue and reload
               if (roomData.queue && roomData.queue.length > 0) {
-                // Rebuild queue from server
                 const newQueue = roomData.queue.map((item: any) => ({
                   id: item.id,
                   song_id: item.song_id,
@@ -242,9 +285,27 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
                   added_by: item.added_by,
                   position: item.position
                 }))
+                console.log('New queue loaded, setting new queue')
                 reorderQueue(newQueue)
+                
+                // If the removed song was playing, switch to the next song
+                if (wasPlaying) {
+                  console.log('Removed song was playing, switching to next song')
+                  if (removedIndex !== -1 && removedIndex < newQueue.length) {
+                    console.log('Setting current song to:', newQueue[removedIndex].title)
+                    setCurrentSong(newQueue[removedIndex])
+                  } else if (newQueue.length > 0) {
+                    console.log('Setting current song to last:', newQueue[newQueue.length - 1].title)
+                    setCurrentSong(newQueue[newQueue.length - 1])
+                  }
+                }
               } else {
+                console.log('Queue is empty after removal')
                 reorderQueue([])
+                if (wasPlaying) {
+                  console.log('Was playing, stopping playback')
+                  setCurrentSong(null)
+                }
               }
             })
           },
@@ -304,7 +365,7 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
       const currentIndex = queue.findIndex(s => s.id === currentSong?.id)
       if (currentIndex < queue.length - 1) {
         const nextSong = queue[currentIndex + 1]
-        console.log('🎵 SONG ENDED: Auto-playing next song', nextSong.title)
+        console.log('SONG ENDED: Auto-playing next song', nextSong.title)
         setCurrentSong(nextSong)
         wsManager?.skip(nextSong.id, 0)
       }
@@ -315,7 +376,7 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
     const currentIndex = queue.findIndex(s => s.id === currentSong?.id)
     if (currentIndex > 0) {
       const prevSong = queue[currentIndex - 1]
-      console.log('🎵 USER ACTION: PREVIOUS to', prevSong.title)
+        console.log('USER ACTION: PREVIOUS to', prevSong.title)
       setCurrentSong(prevSong)
       wsManager?.skip(prevSong.id, 0)
     }
@@ -325,20 +386,20 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
     const currentIndex = queue.findIndex(s => s.id === currentSong?.id)
     if (currentIndex < queue.length - 1) {
       const nextSong = queue[currentIndex + 1]
-      console.log('🎵 USER ACTION: NEXT to', nextSong.title)
+        console.log('USER ACTION: NEXT to', nextSong.title)
       setCurrentSong(nextSong)
       wsManager?.skip(nextSong.id, 0)
     }
   }
 
   const handleQueueItemClick = (song: Song) => {
-    console.log('🎵 USER ACTION: CLICK QUEUE ITEM', song.title)
+    console.log('USER ACTION: CLICK QUEUE ITEM', song.title)
     setCurrentSong(song)
     wsManager?.skip(song.id, 0)
   }
 
   const handleQueueReorder = async (newQueue: Song[]) => {
-    console.log('🎵 USER ACTION: REORDER QUEUE')
+    console.log('USER ACTION: REORDER QUEUE')
     reorderQueue(newQueue)
     
     // Find which song moved
@@ -358,7 +419,7 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
   }
 
   const handleRemoveFromQueue = async (songId: string) => {
-    console.log('🎵 USER ACTION: REMOVE SONG', songId)
+    console.log('USER ACTION: REMOVE SONG', songId)
     removeFromQueue(songId)
     
     try {
@@ -489,6 +550,7 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
             onNext={handleNextSong}
             queue={queue}
             externalPlaybackEvent={externalPlaybackEvent}
+            syncPending={syncPending}
           />
         </div>
       </div>
