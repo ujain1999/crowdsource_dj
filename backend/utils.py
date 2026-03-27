@@ -12,7 +12,6 @@ def search_yt_music(query):
     }
     ytmusic = YTMusic()
     yt_music_url = ytmusic.search(query, filter="songs")
-    print(yt_music_url)
     if yt_music_url:
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"https://music.youtube.com/watch?v={yt_music_url[0]['videoId']}", download=False)
@@ -23,8 +22,6 @@ def search_yt_music(query):
                 "thumbnail": info.get('thumbnail', ''),
                 "duration": info.get('duration', 0)
             }
-
-    print(yt_music_metadata)
     return yt_music_metadata
 
 def get_youtube_audio(youtube_url):
@@ -52,7 +49,6 @@ def get_youtube_audio(youtube_url):
                 yt_music_metadata = search_yt_music(f"{metadata['title']} {metadata['artist']}")
                 if yt_music_metadata['title'].lower().replace(' ','') in metadata['title'].lower().replace(' ',''):
                     metadata = yt_music_metadata
-            print(metadata)
             return metadata
     except Exception as e:
         return {"error": "Failed to fetch audio", "details": str(e)}

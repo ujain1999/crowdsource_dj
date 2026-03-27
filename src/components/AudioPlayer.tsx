@@ -16,8 +16,9 @@ interface AudioPlayerProps {
   onPrevious?: () => void
   onNext?: () => void
   queue?: Song[]
-  onPlaybackEvent?: (event: PlaybackEvent) => void // New: callback when user controls playback
-  externalPlaybackEvent?: PlaybackEvent | null // New: incoming WebSocket playback event
+  onPlaybackEvent?: (event: PlaybackEvent) => void
+  externalPlaybackEvent?: PlaybackEvent | null
+  syncPending?: boolean
 }
 
 export default function AudioPlayer({ 
@@ -28,21 +29,54 @@ export default function AudioPlayer({
   onNext, 
   queue,
   onPlaybackEvent,
-  externalPlaybackEvent
+  externalPlaybackEvent,
+  syncPending = false
 }: AudioPlayerProps) {
   const [currentTime, setCurrentTime] = React.useState(0)
   const [isPlaying, setIsPlaying] = React.useState(false)
   const audioRef = React.useRef<HTMLAudioElement>(null)
   const isSyncingRef = React.useRef(false)
+  const externalSyncRef = React.useRef(false)
+  const syncPendingRef = React.useRef(false)
+  const lastPlayNotification = React.useRef(0)
 
   const canGoPrevious = queue && queue.length > 1 && song && queue[0]?.id !== song.id
   const canGoNext = queue && queue.length > 1 && song && queue[queue.length - 1]?.id !== song.id
 
   React.useEffect(() => {
+    syncPendingRef.current = syncPending
+  }, [syncPending])
+
+  React.useEffect(() => {
     if (song && audioRef.current) {
       audioRef.current.src = song.url
-      audioRef.current.play()
-      setIsPlaying(true)
+      if (!syncPendingRef.current) {
+        audioRef.current.play().catch((e) => {
+          if (e.name !== 'AbortError') {
+            console.error('Play error:', e)
+          }
+        })
+        setIsPlaying(true)
+        if (!externalSyncRef.current) {
+          const now = Date.now()
+          if (now - lastPlayNotification.current > 500) {
+            console.log('Auto-play detected, notifying backend:', song.id)
+            wsManager?.play(song.id, 0)
+            lastPlayNotification.current = now
+          }
+        }
+      }
+    }
+  }, [song])
+
+  // Handle song removal (when song becomes null)
+  React.useEffect(() => {
+    if (song === null && audioRef.current) {
+      console.log('Song removed, pausing audio')
+      audioRef.current.pause()
+      audioRef.current.src = ''
+      setIsPlaying(false)
+      setCurrentTime(0)
     }
   }, [song])
 
@@ -56,11 +90,16 @@ export default function AudioPlayer({
     console.log('Handling external playback event:', externalPlaybackEvent)
     isSyncingRef.current = true
     
+    // Set externalSyncRef BEFORE processing so song effect doesn't send duplicate notifications
+    externalSyncRef.current = true
+    
     try {
       switch (externalPlaybackEvent.type) {
         case 'play':
           console.log('Syncing: PLAY')
-          audioRef.current.play()
+          audioRef.current.play().catch((e) => {
+            if (e.name !== 'AbortError') console.error('Play error:', e)
+          })
           setIsPlaying(true)
           break
         case 'pause':
@@ -76,18 +115,22 @@ export default function AudioPlayer({
       }
     } finally {
       isSyncingRef.current = false
+      // Delay clearing externalSyncRef to catch any queued events
+      setTimeout(() => {
+        externalSyncRef.current = false
+      }, 50)
     }
   }, [externalPlaybackEvent])
 
   const handlePlayPause = () => {
     if (audioRef.current && song) {
       if (isPlaying) {
-        console.log('🎵 USER ACTION: PAUSE at', audioRef.current.currentTime)
+        console.log('USER ACTION: PAUSE at', audioRef.current.currentTime)
         audioRef.current.pause()
         onPlaybackEvent?.({ type: 'pause', current_time: audioRef.current.currentTime })
         wsManager?.pause(audioRef.current.currentTime)
       } else {
-        console.log('🎵 USER ACTION: PLAY song', song.id, 'at', audioRef.current.currentTime)
+        console.log('USER ACTION: PLAY song', song.id, 'at', audioRef.current.currentTime)
         audioRef.current.play()
         onPlaybackEvent?.({ type: 'play', current_song_id: song.id, current_time: audioRef.current.currentTime })
         wsManager?.play(song.id, audioRef.current.currentTime)
@@ -101,7 +144,7 @@ export default function AudioPlayer({
     setCurrentTime(time)
     if (audioRef.current) {
       audioRef.current.currentTime = time
-      console.log('🎵 USER ACTION: SEEK to', time)
+      console.log('USER ACTION: SEEK to', time)
     }
     onPlaybackEvent?.({ type: 'seek', current_time: time })
     wsManager?.seek(time, isPlaying)

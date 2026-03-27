@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import './SearchBar.css'
 import * as api from '../utils/api'
 import { WebSocketManager } from '../utils/websocket'
@@ -12,6 +12,11 @@ export default function SearchBar({ roomCode, wsManager }: SearchBarProps) {
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,6 +43,7 @@ export default function SearchBar({ roomCode, wsManager }: SearchBarProps) {
     <form className="search-bar" onSubmit={handleSearch}>
       <div className="search-input-group">
         <input
+          ref={inputRef}
           type="text"
           placeholder="Search for a song or paste YouTube URL..."
           value={query}
