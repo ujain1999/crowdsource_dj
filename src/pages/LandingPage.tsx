@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import './LandingPage.css'
 import * as api from '../utils/api'
 import { useAuth } from '../contexts/AuthContext'
@@ -17,6 +17,14 @@ export default function LandingPage({ onRoomJoined }: LandingPageProps) {
   const [roomName, setRoomName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const firstInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!user) {
+      createGuest()
+    }
+    firstInputRef.current?.focus()
+  }, [])
 
   const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -140,6 +148,7 @@ export default function LandingPage({ onRoomJoined }: LandingPageProps) {
             {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((index) => (
               <React.Fragment key={index}>
                 <input
+                  ref={index === 0 ? firstInputRef : undefined}
                   type="text"
                   className="room-code-char"
                   maxLength={1}
