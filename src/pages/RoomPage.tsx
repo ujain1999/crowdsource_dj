@@ -213,6 +213,12 @@ export default function RoomPage({ roomCode, onLeaveRoom, onShowAuth }: RoomPage
                         if (e.name !== 'AbortError') console.error('Play error:', e)
                       })
                       console.log('Playing')
+                      // Also set external event so AudioPlayer updates its state
+                      setExternalPlaybackEvent({
+                        type: 'play',
+                        current_song_id: state.current_song_id,
+                        current_time: state.current_time
+                      })
                     }
                   }
                   setSyncPending(false)
