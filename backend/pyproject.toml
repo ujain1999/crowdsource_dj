@@ -1,20 +1,27 @@
 [project]
-name = "crowdsource_dj"
+name = "crowdsource-dj-backend"
 version = "0.1.0"
-description = "Add your description here"
-readme = "../README.md"
-requires-python = ">=3.14"
-dependencies = [
-    "fastapi>=0.135.2",
-    "passlib[bcrypt]>=1.7.4",
-    "psycopg2-binary>=2.9.11",
-    "pydantic[email]>=2.0",
-    "pydantic-settings>=2.0",
-    "python-dotenv>=1.2.2",
-    "python-jose[cryptography]>=3.5.0",
-    "python-multipart>=0.0.22",
-    "sqlalchemy>=2.0.48",
-    "uvicorn[standard]>=0.42.0",
-    "yt-dlp>=2026.3.17",
-    "ytmusicapi>=1.11.5",
+description = "Crowdsource DJ realtime backend"
+authors = [
+    { name = "ujain1999", email = "43496188+ujain1999@users.noreply.github.com" }
 ]
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.142.0",
+    "uvicorn[standard]>=0.54.0",
+    "yt-dlp>=2026.8.19",
+    "ytmusicapi>=1.12.3",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "playwright>=1.63.0",
+    "pytest>=9.1.1",
+    "pytest-timeout>=2.4.0",
+    "websockets>=17.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

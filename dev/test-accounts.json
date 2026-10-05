@@ -1,0 +1,8 @@
+{
+  "_note": "Throwaway accounts used for local browser testing against the dev database only.",
+  "accounts": [
+    {"username": "dj_mango", "password": "mango-test-pass"},
+    {"username": "codj_kiwi", "password": "kiwi-test-pass"},
+    {"username": "mod_plum", "password": "plum-test-pass"}
+  ]
+}
