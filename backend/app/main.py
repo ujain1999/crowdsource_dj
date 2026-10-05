@@ -2,12 +2,13 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import auth, config, music
+from .ratelimit import SlidingWindow, TokenBucket
 from .room import Client, Identity, RoomManager, identity_public, normalize_room_id, pretty_room_id
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -23,6 +24,31 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Crowdsource DJ", lifespan=lifespan)
+
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Content-Security-Policy": "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+# Brute-force protection: failed logins per username, and auth attempts per address.
+failed_logins = SlidingWindow(limit=10, window=15 * 60)
+auth_attempts = SlidingWindow(limit=30, window=60)
+searches = SlidingWindow(limit=60, window=60)
 
 
 # ---- auth ---------------------------------------------------------------------------------
@@ -43,7 +69,9 @@ def current_user(authorization: str | None) -> auth.User | None:
 
 
 @app.post("/api/auth/signup")
-def signup(body: Credentials):
+def signup(body: Credentials, request: Request):
+    if not auth_attempts.allow(_client_ip(request)):
+        raise HTTPException(429, "Too many attempts. Wait a minute and try again.")
     try:
         user, token = auth.signup(body.username, body.password)
     except auth.AuthError as e:
@@ -52,10 +80,14 @@ def signup(body: Credentials):
 
 
 @app.post("/api/auth/login")
-def login(body: Credentials):
+def login(body: Credentials, request: Request):
+    name_key = body.username.strip().lower()[:64]
+    if not auth_attempts.allow(_client_ip(request)) or failed_logins.blocked(name_key):
+        raise HTTPException(429, "Too many attempts. Wait a few minutes and try again.")
     try:
         user, token = auth.login(body.username, body.password)
     except auth.AuthError as e:
+        failed_logins.hit(name_key)
         raise HTTPException(401, str(e))
     return {"token": token, "user": user.public()}
 
@@ -111,16 +143,23 @@ def room_info(raw_id: str):
 # ---- music --------------------------------------------------------------------------------
 
 @app.get("/api/search")
-async def search(q: str):
-    q = q.strip()
+async def search(q: str, request: Request):
+    q = q.strip()[: config.MAX_SEARCH_LENGTH]
     if not q:
         return {"results": []}
     if music.looks_like_url(q):
         return {"results": [], "is_url": True}
+    if not searches.allow(_client_ip(request)):
+        raise HTTPException(429, "Searching too fast. Slow down a little.")
     return {"results": await asyncio.to_thread(music.search, q)}
 
 
 # ---- realtime -----------------------------------------------------------------------------
+
+JOIN_TIMEOUT = 10
+MESSAGES_PER_SECOND = 5
+MESSAGE_BURST = 20
+
 
 @app.websocket("/ws/{raw_id}")
 async def room_socket(ws: WebSocket, raw_id: str):
@@ -132,11 +171,21 @@ async def room_socket(ws: WebSocket, raw_id: str):
         await ws.close(code=4404)
         return
 
-    params = ws.query_params
-    user = await asyncio.to_thread(auth.user_for_token, params.get("token"))
+    # Credentials arrive in the first message rather than the URL, so login tokens
+    # never end up in access logs or proxy logs.
+    try:
+        join = await asyncio.wait_for(ws.receive_json(), timeout=JOIN_TIMEOUT)
+    except (asyncio.TimeoutError, WebSocketDisconnect, RuntimeError, ValueError):
+        await ws.close(code=4400)
+        return
+    if not isinstance(join, dict) or join.get("type") != "join":
+        await ws.close(code=4400)
+        return
+    token = join.get("token") if isinstance(join.get("token"), str) else None
+    user = await asyncio.to_thread(auth.user_for_token, token)
     identity = (
         Identity.for_user(user) if user
-        else Identity.for_guest(params.get("client_id", ""), params.get("name", ""))
+        else Identity.for_guest(str(join.get("client_id") or ""), str(join.get("name") or ""))
     )
     if room.is_banned(identity.key):
         await ws.send_json({"type": "kicked", "by": None})
@@ -148,15 +197,19 @@ async def room_socket(ws: WebSocket, raw_id: str):
     client.send({
         "type": "hello",
         "you": identity_public(identity),
-        "token_rejected": bool(params.get("token")) and user is None,
+        "token_rejected": bool(token) and user is None,
         "chat": list(room.chat)[-100:],
     })
     room.attach(client)
     client.send({"type": "state", "state": room.public_state()})
 
+    limiter = TokenBucket(rate=MESSAGES_PER_SECOND, burst=MESSAGE_BURST)
     try:
         while True:
             msg = await ws.receive_json()
+            if not limiter.allow():
+                client.send({"type": "error", "message": "Slow down a little."})
+                continue
             if isinstance(msg, dict):
                 await room.handle(client, msg)
             if client.closed or room.deleted:

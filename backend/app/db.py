@@ -4,6 +4,7 @@ Live room state is kept in memory by the RoomManager; the rooms table holds a
 JSON snapshot so rooms survive a server restart.
 """
 
+import hashlib
 import json
 import sqlite3
 import threading
@@ -43,8 +44,24 @@ def conn() -> sqlite3.Connection:
         c.execute("PRAGMA foreign_keys = ON")
         c.execute("PRAGMA journal_mode = WAL")
         c.executescript(SCHEMA)
+        _migrate(c)
         _local.conn = c
     return c
+
+
+def _migrate(c: sqlite3.Connection) -> None:
+    c.execute("BEGIN IMMEDIATE")
+    try:
+        version = c.execute("PRAGMA user_version").fetchone()[0]
+        if version < 1:
+            # Session tokens used to be stored as-is; store only their hash.
+            for row in c.execute("SELECT token FROM sessions").fetchall():
+                c.execute("UPDATE sessions SET token = ? WHERE token = ?", (_token_hash(row["token"]), row["token"]))
+            c.execute("PRAGMA user_version = 1")
+        c.execute("COMMIT")
+    except BaseException:
+        c.execute("ROLLBACK")
+        raise
 
 
 def reset_connection() -> None:
@@ -73,24 +90,32 @@ def get_user(user_id: int) -> sqlite3.Row | None:
     return conn().execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
 
 
+def _token_hash(token: str) -> str:
+    # Only a hash is stored, so a leaked database doesn't hand out live logins.
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 def create_session(token: str, user_id: int) -> None:
+    now = time.time()
     with conn() as c:
+        c.execute("DELETE FROM sessions WHERE created_at < ?", (now - config.SESSION_TTL_SECONDS,))
         c.execute(
             "INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)",
-            (token, user_id, time.time()),
+            (_token_hash(token), user_id, now),
         )
 
 
 def user_for_token(token: str) -> sqlite3.Row | None:
     return conn().execute(
-        "SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id WHERE token = ?",
-        (token,),
+        """SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id
+           WHERE token = ? AND sessions.created_at >= ?""",
+        (_token_hash(token), time.time() - config.SESSION_TTL_SECONDS),
     ).fetchone()
 
 
 def delete_session(token: str) -> None:
     with conn() as c:
-        c.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        c.execute("DELETE FROM sessions WHERE token = ?", (_token_hash(token),))
 
 
 # ---- rooms -----------------------------------------------------------------

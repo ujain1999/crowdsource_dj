@@ -62,12 +62,12 @@ export function useRoom(roomId: string, { token, onNotice }: Options) {
 
     const connect = () => {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-      const params = new URLSearchParams({ client_id: getClientId(), name: getGuestName() })
-      if (tokenRef.current) params.set('token', tokenRef.current)
-      const sock = new WebSocket(`${proto}://${location.host}/ws/${roomId}?${params}`)
+      const sock = new WebSocket(`${proto}://${location.host}/ws/${roomId}`)
       ws.current = sock
 
       sock.onopen = () => {
+        // Credentials go in the first message, not the URL, so the token stays out of server logs.
+        sock.send(JSON.stringify({ type: 'join', token: tokenRef.current, client_id: getClientId(), name: getGuestName() }))
         retry = 0
         setStat('open')
         // A quick burst of pings to learn the clock offset, then a slow heartbeat.

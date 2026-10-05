@@ -11,7 +11,9 @@ message converges on the next one.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
+import math
 import random
 import re
 import secrets
@@ -53,7 +55,7 @@ def pretty_room_id(room_id: str) -> str:
 
 @dataclass
 class Identity:
-    key: str            # "u:<user id>" for accounts, "g:<client id>" for guests
+    key: str            # "u:<user id>" for accounts, "g:<hash of client id>" for guests
     name: str
     user_id: int | None = None
 
@@ -64,7 +66,10 @@ class Identity:
     @classmethod
     def for_guest(cls, client_id: str, name: str) -> "Identity":
         client_id = re.sub(r"[^A-Za-z0-9_-]", "", client_id or "")[:40] or secrets.token_hex(8)
-        return cls(f"g:{client_id}", clean_name(name) or "Mystery Guest", None)
+        # Keys are shown to everyone in the room, and the client id is what proves who a
+        # guest is. Publishing a hash means nobody can copy a key to impersonate a guest.
+        digest = hashlib.sha256(client_id.encode()).hexdigest()[:24]
+        return cls(f"g:{digest}", clean_name(name) or "Mystery Guest", None)
 
 
 def clean_name(name: str | None) -> str:
@@ -574,6 +579,11 @@ class Room:
     def add_tracks(self, tracks: list[dict], member: Member) -> None:
         if not tracks:
             return
+        upcoming = len(self.queue) - max(self.current, -1) - 1
+        room_left = config.MAX_QUEUE_LENGTH - upcoming
+        if room_left <= 0:
+            raise ActionError(f"The queue is full ({config.MAX_QUEUE_LENGTH} songs). Wait for a few to play.")
+        tracks = tracks[:room_left]
         was_idle = self._is_idle()
         first_new = len(self.queue)
         for t in tracks:
@@ -857,7 +867,10 @@ async def a_move(room, client, member, msg):
     idx = room._find_uid(msg.get("uid"))
     if idx <= room.current:
         raise ActionError("Only upcoming songs can be moved.")
-    to = int(msg.get("to", idx))
+    try:
+        to = int(msg.get("to", idx))
+    except (TypeError, ValueError, OverflowError):
+        raise ActionError("That isn't a valid spot in the queue.")
     to = max(room.current + 1, min(to, len(room.queue) - 1))
     entry = room.queue.pop(idx)
     room.queue.insert(to, entry)
@@ -887,7 +900,12 @@ async def a_seek(room, client, member, msg):
     track = room.current_track()
     if not track:
         return
-    pos = float(msg.get("position") or 0)
+    try:
+        pos = float(msg.get("position") or 0)
+    except (TypeError, ValueError):
+        raise ActionError("That isn't a valid position.")
+    if not math.isfinite(pos):
+        raise ActionError("That isn't a valid position.")
     if track.get("duration"):
         pos = min(pos, float(track["duration"]) - 0.5)
     room.finished = False

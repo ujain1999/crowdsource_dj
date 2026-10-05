@@ -22,6 +22,10 @@ ENV UV_COMPILE_BYTECODE=1 \
     CDJ_DB_PATH=/data/crowdsource_dj.sqlite3 \
     CDJ_FRONTEND_DIST=/app/frontend/dist
 
+# Which proxies may set X-Forwarded-For. Narrow this to your proxy's address when you can:
+# rate limits key on the client address, which an untrusted header can fake.
+ENV FORWARDED_ALLOW_IPS="*"
+
 WORKDIR /app/backend
 COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
 RUN uv sync --frozen --no-dev --no-install-project
@@ -33,4 +37,4 @@ USER cdj
 VOLUME /data
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--ws-max-size", "65536"]

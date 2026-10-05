@@ -15,6 +15,8 @@ from . import config
 log = logging.getLogger(__name__)
 
 VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+PLAYLIST_ID_RE = re.compile(r"^[A-Za-z0-9_-]{2,64}$")
+YOUTUBE_HOSTS = ("youtube.com", "youtu.be", "youtube-nocookie.com")
 MAX_PLAYLIST_ITEMS = 50
 
 _cache: dict[str, dict] = {}
@@ -98,7 +100,7 @@ def _fake(n: int, prefix: str = "Fake") -> dict:
 # ---- public API ---------------------------------------------------------------
 
 def search(query: str, limit: int = 12) -> list[dict]:
-    query = (query or "").strip()
+    query = (query or "").strip()[: config.MAX_SEARCH_LENGTH]
     if not query:
         return []
     if config.OFFLINE_MUSIC:
@@ -145,10 +147,12 @@ def parse_youtube_url(text: str) -> tuple[str | None, str | None]:
         text = "https://" + text
     url = urlparse(text)
     host = (url.hostname or "").lower()
-    if not (host.endswith("youtube.com") or host.endswith("youtu.be") or host.endswith("youtube-nocookie.com")):
+    if not any(host == h or host.endswith("." + h) for h in YOUTUBE_HOSTS):
         return None, None
     qs = parse_qs(url.query)
     playlist = qs.get("list", [None])[0]
+    if playlist and not PLAYLIST_ID_RE.match(playlist):
+        playlist = None
     video = None
     if host.endswith("youtu.be"):
         video = url.path.strip("/").split("/")[0]
@@ -241,6 +245,8 @@ def resolve(text: str) -> list[dict]:
 
 def radio(video_id: str, limit: int = 25) -> list[dict]:
     """Songs similar to video_id, from YouTube Music's free 'radio' mix."""
+    if not VIDEO_ID_RE.match(video_id or ""):
+        return []
     if config.OFFLINE_MUSIC:
         base = sum(map(ord, video_id)) % 1000
         return [_fake(base * 100 + i, "Radi") for i in range(1, limit + 1)]

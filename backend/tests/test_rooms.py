@@ -407,3 +407,66 @@ def test_player_error_needs_majority_of_tuned_listeners(new_room, join):
         a.until(lambda m, _: m["type"] == "toast" and "won't play in your browser" in m["text"])
         b.send(type="player_error", uid=uid, code=150)
         dj.until_state(lambda s: s["current"] == 1)
+
+
+# ---- security ---------------------------------------------------------------------------------
+
+def test_guest_key_does_not_reveal_client_id(new_room, join, client):
+    room_id, token, _ = new_room()
+    with join(room_id, token=token) as dj, client.websocket_connect(f"/ws/{room_id}") as ws:
+        ws.send_json({"type": "join", "client_id": "victim-client-id", "name": "Victim"})
+        hello = ws.receive_json()
+        assert hello["type"] == "hello"
+        assert "victim-client-id" not in hello["you"]["key"]
+        s = dj.until_state(lambda s: any(m["name"] == "Victim" for m in s["members"]))
+        assert all("victim-client-id" not in m["key"] for m in s["members"])
+
+
+def test_socket_needs_join_message(new_room, client):
+    room_id, token, _ = new_room()
+    with client.websocket_connect(f"/ws/{room_id}?token={token}") as ws:
+        ws.send_json({"type": "chat", "text": "hi"})
+        with pytest.raises(Exception):
+            ws.receive_json()
+
+
+def test_session_tokens_are_hashed_at_rest(signup):
+    from app import db
+
+    token, user = signup()
+    assert db.conn().execute("SELECT 1 FROM sessions WHERE token = ?", (token,)).fetchone() is None
+    assert db.user_for_token(token)["id"] == user["id"]
+
+
+def test_expired_sessions_are_rejected(signup, client, monkeypatch):
+    from app import config
+
+    token, _ = signup()
+    monkeypatch.setattr(config, "SESSION_TTL_SECONDS", -1)
+    assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
+
+
+def test_login_is_rate_limited(signup, client):
+    _, user = signup()
+    for _ in range(10):
+        r = client.post("/api/auth/login", json={"username": user["username"], "password": "wrong-pass"})
+        assert r.status_code == 401
+    r = client.post("/api/auth/login", json={"username": user["username"], "password": "secret123"})
+    assert r.status_code == 429
+
+
+def test_seek_rejects_non_finite_positions(new_room, join):
+    room_id, token, _ = new_room()
+    with join(room_id, token=token) as dj:
+        dj.send(type="add", video_id="dQw4w9WgXcQ")
+        dj.until_state(lambda s: s["current"] == 0)
+        dj.ws.send_text('{"type": "seek", "position": NaN}')
+        assert "valid position" in dj.until_error()
+
+
+def test_lookalike_hosts_are_not_youtube():
+    from app import music
+
+    assert music.parse_youtube_url("https://evilyoutube.com/watch?v=dQw4w9WgXcQ") == (None, None)
+    assert music.parse_youtube_url("https://music.youtube.com/watch?v=dQw4w9WgXcQ")[0] == "dQw4w9WgXcQ"
+    assert music.parse_youtube_url("https://youtube.com/playlist?list=PL%26x%3Dy")[1] is None
