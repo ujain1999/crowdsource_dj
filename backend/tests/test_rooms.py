@@ -485,3 +485,37 @@ def test_binary_join_frame_is_closed_cleanly(new_room, client):
         ws.send_bytes(b"\x00\x01")
         with pytest.raises(Exception):
             ws.receive_json()
+
+
+def _login(client, username, password, ip=None):
+    headers = {"CF-Connecting-IP": ip} if ip else {}
+    return client.post("/api/auth/login", json={"username": username, "password": password}, headers=headers)
+
+
+def test_lockout_only_hits_the_guessing_address(signup, client, monkeypatch):
+    from app import config
+
+    monkeypatch.setattr(config, "CLIENT_IP_HEADER", "CF-Connecting-IP")
+    _, user = signup()
+    for _ in range(10):
+        assert _login(client, user["username"], "wrong-pass", ip="203.0.113.9").status_code == 401
+    assert _login(client, user["username"], "secret123", ip="203.0.113.9").status_code == 429
+    assert _login(client, user["username"], "secret123", ip="198.51.100.4").status_code == 200
+
+
+def test_guessing_from_many_addresses_is_capped(signup, client, monkeypatch):
+    from app import config
+
+    monkeypatch.setattr(config, "CLIENT_IP_HEADER", "CF-Connecting-IP")
+    _, user = signup()
+    for i in range(100):
+        assert _login(client, user["username"], "wrong-pass", ip=f"203.0.113.{i}").status_code == 401
+    assert _login(client, user["username"], "secret123", ip="198.51.100.4").status_code == 429
+
+
+def test_client_ip_header_is_ignored_unless_configured(signup, client):
+    _, user = signup()
+    for i in range(10):
+        assert _login(client, user["username"], "wrong-pass", ip=f"203.0.113.{i}").status_code == 401
+    # Without CDJ_CLIENT_IP_HEADER the forged header changes nothing: same address, locked.
+    assert _login(client, user["username"], "secret123", ip="198.51.100.4").status_code == 429

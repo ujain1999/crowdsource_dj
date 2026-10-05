@@ -18,7 +18,7 @@ from app.main import app  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def reset_rate_limits():
-    for limiter in (main.failed_logins, main.auth_attempts, main.searches):
+    for limiter in (main.failed_logins, main.failed_logins_any_address, main.auth_attempts, main.searches):
         limiter.reset()
 
 

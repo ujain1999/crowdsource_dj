@@ -42,11 +42,18 @@ async def security_headers(request: Request, call_next):
 
 
 def _client_ip(request: Request) -> str:
+    if config.CLIENT_IP_HEADER:
+        forwarded = request.headers.get(config.CLIENT_IP_HEADER, "").strip()
+        if forwarded:
+            return forwarded[:64]
     return request.client.host if request.client else "unknown"
 
 
-# Brute-force protection: failed logins per username, and auth attempts per address.
+# Brute-force protection. Failed logins are counted per account and address, so one person
+# guessing only locks themselves out, with a much higher per-account cap to slow guessing
+# spread over many addresses. Auth attempts and searches are also capped per address.
 failed_logins = SlidingWindow(limit=10, window=15 * 60)
+failed_logins_any_address = SlidingWindow(limit=100, window=60 * 60)
 auth_attempts = SlidingWindow(limit=30, window=60)
 searches = SlidingWindow(limit=60, window=60)
 
@@ -81,13 +88,20 @@ def signup(body: Credentials, request: Request):
 
 @app.post("/api/auth/login")
 def login(body: Credentials, request: Request):
+    ip = _client_ip(request)
     name_key = body.username.strip().lower()[:64]
-    if not auth_attempts.allow(_client_ip(request)) or failed_logins.blocked(name_key):
+    name_ip_key = f"{name_key}|{ip}"
+    if (
+        not auth_attempts.allow(ip)
+        or failed_logins.blocked(name_ip_key)
+        or failed_logins_any_address.blocked(name_key)
+    ):
         raise HTTPException(429, "Too many attempts. Wait a few minutes and try again.")
     try:
         user, token = auth.login(body.username, body.password)
     except auth.AuthError as e:
-        failed_logins.hit(name_key)
+        failed_logins.hit(name_ip_key)
+        failed_logins_any_address.hit(name_key)
         raise HTTPException(401, str(e))
     return {"token": token, "user": user.public()}
 

@@ -22,8 +22,8 @@ ENV UV_COMPILE_BYTECODE=1 \
     CDJ_DB_PATH=/data/crowdsource_dj.sqlite3 \
     CDJ_FRONTEND_DIST=/app/frontend/dist
 
-# Which proxies may set X-Forwarded-For. Narrow this to your proxy's address when you can:
-# rate limits key on the client address, which an untrusted header can fake.
+# Which proxies may set X-Forwarded-For/-Proto. Behind Cloudflare, rate limits use
+# CDJ_CLIENT_IP_HEADER=CF-Connecting-IP instead (see docker-compose.yml).
 ENV FORWARDED_ALLOW_IPS="*"
 
 WORKDIR /app/backend

@@ -3,8 +3,11 @@ services:
     build: .
     image: crowdsource-dj
     ports:
-      - "8000:8000"
+      # Local only: cloudflared on this host is the way in. Publishing on all interfaces
+      # would let anyone skip Cloudflare and forge the client address header below.
+      - "127.0.0.1:8000:8000"
     environment:
+      CDJ_CLIENT_IP_HEADER: "CF-Connecting-IP"
       CDJ_DJ_GRACE_SECONDS: "15"
       CDJ_POLL_SECONDS: "60"
     volumes:
