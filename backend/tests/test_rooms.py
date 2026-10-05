@@ -470,3 +470,18 @@ def test_lookalike_hosts_are_not_youtube():
     assert music.parse_youtube_url("https://evilyoutube.com/watch?v=dQw4w9WgXcQ") == (None, None)
     assert music.parse_youtube_url("https://music.youtube.com/watch?v=dQw4w9WgXcQ")[0] == "dQw4w9WgXcQ"
     assert music.parse_youtube_url("https://youtube.com/playlist?list=PL%26x%3Dy")[1] is None
+
+
+def test_non_string_token_is_just_rejected(new_room, join):
+    room_id, token, _ = new_room()
+    with join(room_id, token=token) as dj, join(room_id) as guest:
+        guest.send(type="auth", token=12345)
+        assert guest.until_error() == "Your login expired. Log in again."
+
+
+def test_binary_join_frame_is_closed_cleanly(new_room, client):
+    room_id, _, _ = new_room()
+    with client.websocket_connect(f"/ws/{room_id}") as ws:
+        ws.send_bytes(b"\x00\x01")
+        with pytest.raises(Exception):
+            ws.receive_json()

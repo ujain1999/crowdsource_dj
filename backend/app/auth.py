@@ -77,7 +77,7 @@ def _new_session(user: User) -> tuple[User, str]:
 
 
 def user_for_token(token: str | None) -> User | None:
-    if not token or len(token) > 128:
+    if not isinstance(token, str) or not token or len(token) > 128:
         return None
     row = db.user_for_token(token)
     return User(row["id"], row["username"]) if row else None

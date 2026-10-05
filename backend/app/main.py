@@ -175,7 +175,8 @@ async def room_socket(ws: WebSocket, raw_id: str):
     # never end up in access logs or proxy logs.
     try:
         join = await asyncio.wait_for(ws.receive_json(), timeout=JOIN_TIMEOUT)
-    except (asyncio.TimeoutError, WebSocketDisconnect, RuntimeError, ValueError):
+    except (asyncio.TimeoutError, WebSocketDisconnect, RuntimeError, ValueError, KeyError):
+        # KeyError: a binary frame, which receive_json can't read.
         await ws.close(code=4400)
         return
     if not isinstance(join, dict) or join.get("type") != "join":
