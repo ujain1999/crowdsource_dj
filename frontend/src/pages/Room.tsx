@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import Chat from '../components/Chat'
 import Crate from '../components/Crate'
+import { SettingsIcon, VideoIcon } from '../components/icons'
 import Modal from '../components/Modal'
 import SettingsModal from '../components/SettingsModal'
 import Stage from '../components/Stage'
@@ -127,11 +128,11 @@ function LiveRoom({ roomId, pretty }: { roomId: string; pretty: string }) {
           aria-label={showVideo ? 'Hide video' : 'Show video'}
           title={showVideo ? 'Hide video' : 'Show video'}
         >
-          📺
+          <VideoIcon />
         </button>
         {isCrew && (
           <button className="icon-btn bar-icon" onClick={() => setSettingsOpen(true)} aria-label="Room settings" title="Room settings">
-            ⚙
+            <SettingsIcon />
           </button>
         )}
         <button className="btn btn-small leave-btn" onClick={leave}>

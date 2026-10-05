@@ -159,6 +159,16 @@ img {
   background: var(--line);
 }
 
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.bar-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
 /* ---------- landing ---------- */
 
 .landing {
@@ -1220,6 +1230,11 @@ img {
   line-height: 1;
   display: grid;
   place-items: center;
+}
+
+.add-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .add-btn:hover {

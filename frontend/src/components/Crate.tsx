@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { colorFor, formatTime } from '../lib/session'
 import { ROLE_LABEL, ROLE_RANK, type Member, type QueueEntry, type Role, type RoomState, type Track, type You } from '../lib/types'
 import AddSong from './AddSong'
+import { ArrowDownIcon, ArrowUpIcon, CloseIcon, MoreIcon, PlayIcon, PlusIcon } from './icons'
 
 interface Props {
   state: RoomState
@@ -46,7 +47,7 @@ export default function Crate({ state, you, myRole, send, onNotice, requestLogin
         <span className="track-duration">{formatTime(t.duration)}</span>
         {isCrew && kind !== 'current' && (
           <button className="icon-btn" onClick={() => send({ type: 'jump', uid: t.uid })} aria-label={`Play ${t.title} now`} title="Play now">
-            ▶
+            <PlayIcon />
           </button>
         )}
         {isCrew && kind === 'upcoming' && (
@@ -58,7 +59,7 @@ export default function Crate({ state, you, myRole, send, onNotice, requestLogin
               aria-label={`Move ${t.title} up`}
               title="Move up"
             >
-              ↑
+              <ArrowUpIcon />
             </button>
             <button
               className="icon-btn"
@@ -67,13 +68,13 @@ export default function Crate({ state, you, myRole, send, onNotice, requestLogin
               aria-label={`Move ${t.title} down`}
               title="Move down"
             >
-              ↓
+              <ArrowDownIcon />
             </button>
           </>
         )}
         {kind !== 'played' && canRemove(t) && (
           <button className="icon-btn" onClick={() => send({ type: 'remove', uid: t.uid })} aria-label={`Remove ${t.title}`} title="Remove">
-            ✕
+            <CloseIcon />
           </button>
         )}
       </div>
@@ -176,7 +177,7 @@ function SuggestionRow({ t, isCrew, send, onNotice }: { t: Track; isCrew: boolea
         <span className="track-duration">{formatTime(t.duration)}</span>
         {isCrew && (
           <button className="icon-btn" onClick={() => send({ type: 'remove_suggestion', video_id: t.video_id })} aria-label={`Drop ${t.title}`} title="Drop">
-            ✕
+            <CloseIcon />
           </button>
         )}
         <button
@@ -184,7 +185,7 @@ function SuggestionRow({ t, isCrew, send, onNotice }: { t: Track; isCrew: boolea
           onClick={() => send({ type: 'add', video_id: t.video_id, from_suggestions: true }) && onNotice(`Queued “${t.title}”`)}
           aria-label={`Add ${t.title} to the queue`}
         >
-          +
+          <PlusIcon />
         </button>
       </div>
     </li>
@@ -246,7 +247,7 @@ function Person({
       {(canAssign || canKick || canHandOver) && (
         <div className="person-menu" ref={ref}>
           <button className="icon-btn" onClick={() => setOpen((o) => !o)} aria-label={`Options for ${m.name}`} aria-expanded={open}>
-            ⋯
+            <MoreIcon />
           </button>
           {open && (
             <div className="menu" role="menu">

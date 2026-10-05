@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { colorFor } from '../lib/session'
 import { ROLE_LABEL, ROLE_RANK, type ChatMessage, type Poll, type Role, type RoomState, type You } from '../lib/types'
+import { CloseIcon } from './icons'
 
 interface Props {
   chat: ChatMessage[]
@@ -70,7 +71,7 @@ export default function Chat({ chat, state, you, myRole, send, serverNow }: Prop
               </div>
               {canModerate && (
                 <button className="icon-btn msg-del" onClick={() => send({ type: 'delete_message', id: m.id })} aria-label="Delete message">
-                  ✕
+                  <CloseIcon />
                 </button>
               )}
             </div>

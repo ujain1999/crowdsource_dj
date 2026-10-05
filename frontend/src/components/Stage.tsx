@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatTime } from '../lib/session'
 import type { RoomState } from '../lib/types'
 import { loadYouTube, PLAYER_STATE, type YTPlayer } from '../lib/youtube'
-import { NextIcon, PauseIcon, PlayIcon, PrevIcon, Tonearm } from './icons'
+import { MuteIcon, NextIcon, PauseIcon, PlayIcon, PrevIcon, Tonearm, VolumeIcon } from './icons'
 import Vinyl, { isLetterboxed } from './Record'
 
 interface Props {
@@ -305,7 +305,7 @@ export default function Stage({ state, canControl, send, serverNow, showVideo }:
           )}
           <label className="volume">
             <button className="icon-btn" onClick={() => setMuted((m) => !m)} aria-label={muted ? 'Unmute' : 'Mute'}>
-              {muted || volume === 0 ? '🔇' : '🔊'}
+              {muted || volume === 0 ? <MuteIcon /> : <VolumeIcon />}
             </button>
             <span className="sr-only">Your volume</span>
             <input type="range" min={0} max={100} value={volume} onChange={(e) => setVolume(Number(e.target.value))} />
