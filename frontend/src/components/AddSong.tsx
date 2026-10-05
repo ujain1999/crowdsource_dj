@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api } from '../lib/api'
 import { formatTime } from '../lib/session'
 import type { Track } from '../lib/types'
+import { CheckIcon, PlusIcon } from './icons'
 
 interface Props {
   send: (msg: Record<string, unknown>) => boolean
@@ -121,7 +122,7 @@ export default function AddSong({ send, onAdded }: Props) {
                       aria-label={`Add ${t.title} to the queue`}
                       disabled={added.has(t.video_id)}
                     >
-                      {added.has(t.video_id) ? '✓' : '+'}
+                      {added.has(t.video_id) ? <CheckIcon /> : <PlusIcon />}
                     </button>
                   </div>
                 </li>

@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { CloseIcon } from './icons'
 
 interface Props {
   title: string
@@ -17,7 +18,7 @@ export default function Modal({ title, onClose, children }: Props) {
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-label={title}>
         <button className="icon-btn modal-close" onClick={onClose} aria-label="Close">
-          ✕
+          <CloseIcon />
         </button>
         <h2>{title}</h2>
         {children}
