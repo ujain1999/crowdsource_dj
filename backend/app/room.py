@@ -73,7 +73,7 @@ class Identity:
         # Keys are shown to everyone in the room, and the client id is what proves who a
         # guest is. Publishing a hash means nobody can copy a key to impersonate a guest.
         digest = hashlib.sha256(client_id.encode()).hexdigest()[:24]
-        return cls(f"g:{digest}", clean_name(name) or "Mystery Guest", None)
+        return cls(f"g:{digest}", name or "Mystery Guest", None)
 
 
 def clean_name(name: str | None) -> str:
@@ -850,9 +850,14 @@ async def a_add(room, client, member, msg):
     track = await asyncio.to_thread(music.get_track, video_id)
     if not track:
         raise ActionError("Couldn't find that song on YouTube.")
+    before = room.suggestions
     if msg.get("from_suggestions"):
         room.suggestions = [s for s in room.suggestions if s["video_id"] != video_id]
-    room.add_tracks([track], member)
+    try:
+        room.add_tracks([track], member)
+    except ActionError:
+        room.suggestions = before  # queue full: keep the suggestion
+        raise
 
 
 async def a_add_url(room, client, member, msg):

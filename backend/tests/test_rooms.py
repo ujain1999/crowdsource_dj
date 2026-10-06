@@ -613,3 +613,20 @@ def test_socket_loop_stops_once_client_is_dropped(new_room, join):
         for _ in range(30):  # flooding past the throttle must not keep it attached
             guest.send(type="ping", t=1)
         dj.until_state(lambda s: guest.key not in [m["key"] for m in s["members"]])
+
+
+def test_full_queue_keeps_the_suggestion(new_room, join, monkeypatch):
+    from app import config
+
+    room_id, token, _ = new_room()
+    with join(room_id, token=token) as dj:
+        dj.send(type="add", video_id="dQw4w9WgXcQ")
+        s = dj.until_state(lambda s: s["current"] == 0 and len(s["suggestions"]) > 0)
+        pick = s["suggestions"][0]["video_id"]
+        monkeypatch.setattr(config, "MAX_QUEUE_LENGTH", 0)
+        dj.send(type="add", video_id=pick, from_suggestions=True)
+        assert "queue is full" in dj.until_error()
+        dj.send(type="ping", t=1)
+        dj.until(lambda m, _: m["type"] == "pong")
+        from app import main
+        assert any(t["video_id"] == pick for t in main.rooms.get(room_id).suggestions)
