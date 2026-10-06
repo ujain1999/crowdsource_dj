@@ -15,9 +15,18 @@ POLL_SECONDS = float(os.environ.get("CDJ_POLL_SECONDS", "60"))
 # Built frontend, served by FastAPI in production.
 FRONTEND_DIST = Path(os.environ.get("CDJ_FRONTEND_DIST", BASE_DIR.parent / "frontend" / "dist"))
 
+# How long a login lasts before the person has to log in again.
+SESSION_TTL_SECONDS = float(os.environ.get("CDJ_SESSION_TTL_SECONDS", str(30 * 24 * 3600)))
+
+# Header that carries the visitor's real address, e.g. "CF-Connecting-IP" behind Cloudflare.
+# Only set this when every request reaches the app through that proxy, or it can be forged.
+CLIENT_IP_HEADER = os.environ.get("CDJ_CLIENT_IP_HEADER", "").strip()
+
 # Set to "1" in tests to avoid calling out to YouTube.
 OFFLINE_MUSIC = os.environ.get("CDJ_OFFLINE_MUSIC") == "1"
 
 CHAT_HISTORY = 200
 MAX_CHAT_LENGTH = 500
 SUGGESTIONS_TARGET = 15
+MAX_QUEUE_LENGTH = 500
+MAX_SEARCH_LENGTH = 200

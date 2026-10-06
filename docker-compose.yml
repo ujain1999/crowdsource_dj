@@ -3,8 +3,14 @@ services:
     build: .
     image: crowdsource-dj
     ports:
-      - "8000:8000"
+      # Local only. Anything that can reach the app without going through Cloudflare could
+      # forge the client address header below. (qd deploys drop this mapping entirely: the
+      # app is reached through cloudflared -> traefik on the qd network.)
+      - "127.0.0.1:8000:8000"
     environment:
+      # Behind Cloudflare. Remove this if traffic doesn't come through Cloudflare (see
+      # "Deploying" in docs/DEVELOPMENT.md), or anyone could fake their address.
+      CDJ_CLIENT_IP_HEADER: "CF-Connecting-IP"
       CDJ_DJ_GRACE_SECONDS: "15"
       CDJ_POLL_SECONDS: "60"
     volumes:

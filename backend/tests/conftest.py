@@ -12,7 +12,15 @@ os.environ["CDJ_FRONTEND_DIST"] = os.path.join(_tmp, "no-frontend")
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
+from app import main  # noqa: E402
 from app.main import app  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limits():
+    for limiter in (main.failed_logins, main.failed_logins_any_address, main.auth_attempts, main.searches,
+                    main.room_creations):
+        limiter.reset()
 
 
 @pytest.fixture
@@ -104,8 +112,8 @@ def join(client):
 
     @contextmanager
     def connect(room_id, token=None, name="Guest"):
-        q = f"token={token}" if token else f"client_id={uuid.uuid4().hex}&name={name}"
-        with client.websocket_connect(f"/ws/{room_id}?{q}") as ws:
+        with client.websocket_connect(f"/ws/{room_id}") as ws:
+            ws.send_json({"type": "join", "token": token, "client_id": uuid.uuid4().hex, "name": name})
             p = Person(ws)
             p.until(lambda m, _: m["type"] == "state")
             yield p

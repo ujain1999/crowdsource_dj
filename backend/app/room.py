@@ -11,7 +11,9 @@ message converges on the next one.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
+import math
 import random
 import re
 import secrets
@@ -27,6 +29,7 @@ log = logging.getLogger(__name__)
 
 ROLE_RANK = {"listener": 0, "mod": 1, "codj": 2, "dj": 3}
 ROLE_LABEL = {"listener": "listener", "mod": "moderator", "codj": "co-DJ", "dj": "DJ"}
+MAX_OUTBOX = 500  # queued messages for one connection before we give up on it
 SLOW_ACTIONS = {"add", "add_url", "refresh_suggestions"}
 VOTESKIP_RE = re.compile(r"(^|\s)/voteskip\b", re.IGNORECASE)
 ROOM_ID_LEN = 12
@@ -53,7 +56,7 @@ def pretty_room_id(room_id: str) -> str:
 
 @dataclass
 class Identity:
-    key: str            # "u:<user id>" for accounts, "g:<client id>" for guests
+    key: str            # "u:<user id>" for accounts, "g:<hash of client id>" for guests
     name: str
     user_id: int | None = None
 
@@ -64,11 +67,22 @@ class Identity:
     @classmethod
     def for_guest(cls, client_id: str, name: str) -> "Identity":
         client_id = re.sub(r"[^A-Za-z0-9_-]", "", client_id or "")[:40] or secrets.token_hex(8)
-        return cls(f"g:{client_id}", clean_name(name) or "Mystery Guest", None)
+        name = clean_name(name)
+        if name and not guest_name_allowed(name):
+            name = ""
+        # Keys are shown to everyone in the room, and the client id is what proves who a
+        # guest is. Publishing a hash means nobody can copy a key to impersonate a guest.
+        digest = hashlib.sha256(client_id.encode()).hexdigest()[:24]
+        return cls(f"g:{digest}", name or "Mystery Guest", None)
 
 
 def clean_name(name: str | None) -> str:
     return re.sub(r"\s+", " ", (name or "")).strip()[:24]
+
+
+def guest_name_allowed(name: str) -> bool:
+    """Guests can't take a registered username, so nobody can pose as an account in chat."""
+    return db.get_user_by_name(name) is None
 
 
 class Client:
@@ -87,8 +101,17 @@ class Client:
         return self.identity.key
 
     def send(self, msg: dict) -> None:
-        if not self.closed:
-            self._outbox.put_nowait(msg)
+        if self.closed:
+            return
+        if self._outbox.qsize() >= MAX_OUTBOX:
+            # The other end isn't reading. Stop queueing (memory would grow without bound)
+            # and hang up as soon as the stuck send gives way.
+            self.closed = True
+            while not self._outbox.empty():
+                self._outbox.get_nowait()
+            self._outbox.put_nowait(None)
+            return
+        self._outbox.put_nowait(msg)
 
     def close_soon(self) -> None:
         self._outbox.put_nowait(None)
@@ -574,6 +597,11 @@ class Room:
     def add_tracks(self, tracks: list[dict], member: Member) -> None:
         if not tracks:
             return
+        upcoming = len(self.queue) - max(self.current, -1) - 1
+        room_left = config.MAX_QUEUE_LENGTH - upcoming
+        if room_left <= 0:
+            raise ActionError(f"The queue is full ({config.MAX_QUEUE_LENGTH} songs). Wait for a few to play.")
+        tracks = tracks[:room_left]
         was_idle = self._is_idle()
         first_new = len(self.queue)
         for t in tracks:
@@ -822,9 +850,14 @@ async def a_add(room, client, member, msg):
     track = await asyncio.to_thread(music.get_track, video_id)
     if not track:
         raise ActionError("Couldn't find that song on YouTube.")
+    before = room.suggestions
     if msg.get("from_suggestions"):
         room.suggestions = [s for s in room.suggestions if s["video_id"] != video_id]
-    room.add_tracks([track], member)
+    try:
+        room.add_tracks([track], member)
+    except ActionError:
+        room.suggestions = before  # queue full: keep the suggestion
+        raise
 
 
 async def a_add_url(room, client, member, msg):
@@ -857,7 +890,10 @@ async def a_move(room, client, member, msg):
     idx = room._find_uid(msg.get("uid"))
     if idx <= room.current:
         raise ActionError("Only upcoming songs can be moved.")
-    to = int(msg.get("to", idx))
+    try:
+        to = int(msg.get("to", idx))
+    except (TypeError, ValueError, OverflowError):
+        raise ActionError("That isn't a valid spot in the queue.")
     to = max(room.current + 1, min(to, len(room.queue) - 1))
     entry = room.queue.pop(idx)
     room.queue.insert(to, entry)
@@ -887,7 +923,12 @@ async def a_seek(room, client, member, msg):
     track = room.current_track()
     if not track:
         return
-    pos = float(msg.get("position") or 0)
+    try:
+        pos = float(msg.get("position") or 0)
+    except (TypeError, ValueError):
+        raise ActionError("That isn't a valid position.")
+    if not math.isfinite(pos):
+        raise ActionError("That isn't a valid position.")
     if track.get("duration"):
         pos = min(pos, float(track["duration"]) - 0.5)
     room.finished = False
@@ -1039,6 +1080,8 @@ async def a_rename(room, client, member, msg):
     name = clean_name(msg.get("name"))
     if not name:
         raise ActionError("Pick a name with at least one character.")
+    if not guest_name_allowed(name):
+        raise ActionError("That name belongs to an account. Pick another one, or log in.")
     old = member.name
     member.identity.name = name
     for c in member.clients:
@@ -1072,6 +1115,9 @@ async def a_leave(room, client, member, msg):
 
 
 async def a_delete_room(room, client, member, msg):
+    # The booth can pass to a guest; deleting someone's room for good needs an account.
+    if member.identity.user_id is None:
+        raise ActionError("Log in to delete the room.")
     room.delete(member)
 
 

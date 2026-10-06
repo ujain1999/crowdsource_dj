@@ -65,8 +65,9 @@ can refresh them for a fresh batch, drop individual ones, and anyone can pull on
 | Co-DJ | ✓ | ✓ | ✓ | |
 | DJ | ✓ | ✓ | ✓ | ✓ |
 
-Creating a room, and being made co-DJ or moderator, needs an account. Guests can sign up or
-log in from inside a room without leaving it.
+Creating a room, being made co-DJ or moderator, and deleting a room need an account (a guest
+can end up as DJ when the booth passes to them, but can't delete the room). Guests can sign up
+or log in from inside a room without leaving it.
 
 **DJ leaves.** Pressing *Leave* hands the booth over at once. Closing the tab gives a
 15-second grace period (so a refresh doesn't cost you the booth). The new DJ is a random
@@ -105,3 +106,29 @@ Environment variables for the backend:
 | `CDJ_DJ_GRACE_SECONDS` | `15` | How long a disconnected DJ keeps the booth |
 | `CDJ_POLL_SECONDS` | `60` | How long a /voteskip poll stays open |
 | `CDJ_FRONTEND_DIST` | `frontend/dist` | Built frontend to serve |
+| `CDJ_SESSION_TTL_SECONDS` | `2592000` (30 days) | How long a login lasts |
+| `CDJ_CLIENT_IP_HEADER` | unset | Header holding the visitor's real address, e.g. `CF-Connecting-IP`. See [Deploying](#deploying) |
+| `FORWARDED_ALLOW_IPS` | `*` in the Docker image | Proxies uvicorn trusts for `X-Forwarded-For`/`-Proto` |
+
+## Deploying
+
+The Docker image is the deployable unit: it runs as a non-root user, keeps its data in
+`/data`, and limits WebSocket messages to 64 KB. Run **one** process: rooms, rate limits and
+live connections are kept in memory.
+
+**The visitor's address.** Login lockouts, signup and search limits, and the cap on open
+connections are counted per address, so the app must see the real one, and nobody may be able
+to fake it. Pick the setup that matches how traffic reaches the app:
+
+| How traffic arrives | Set | Make sure |
+|---|---|---|
+| Cloudflare (Tunnel, or proxied DNS). This is what `docker-compose.yml` assumes | `CDJ_CLIENT_IP_HEADER=CF-Connecting-IP` | The app is reachable **only** through Cloudflare: no published port, or a firewall that only lets in Cloudflare. Otherwise anyone can send the header themselves. |
+| Another reverse proxy (nginx, Caddy, Traefik, a load balancer) | Leave `CDJ_CLIENT_IP_HEADER` unset. Set `FORWARDED_ALLOW_IPS` to the proxy's address | The proxy sets `X-Forwarded-For` itself. |
+| Directly, no proxy | Leave `CDJ_CLIENT_IP_HEADER` unset. Set `FORWARDED_ALLOW_IPS=127.0.0.1` so clients can't send `X-Forwarded-For` | |
+
+If you move off Cloudflare, remove `CDJ_CLIENT_IP_HEADER` from `docker-compose.yml`.
+
+**With [`qd`](https://github.com/ujain1999/quick_deploy)** (Cloudflare Tunnel → Traefik → app on the
+`qd` Docker network), `qd deploy` uses `docker-compose.yml` as is: it drops the published port, so
+the only way in is through Cloudflare. `.qdignore` keeps local databases and dev files off the
+server.
