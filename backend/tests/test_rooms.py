@@ -2,6 +2,7 @@ import re
 import time
 
 import pytest
+from starlette.websockets import WebSocketDisconnect
 
 from app import music
 from app.room import normalize_room_id, pretty_room_id
@@ -426,7 +427,7 @@ def test_socket_needs_join_message(new_room, client):
     room_id, token, _ = new_room()
     with client.websocket_connect(f"/ws/{room_id}?token={token}") as ws:
         ws.send_json({"type": "chat", "text": "hi"})
-        with pytest.raises(Exception):
+        with pytest.raises(WebSocketDisconnect):
             ws.receive_json()
 
 
@@ -483,7 +484,7 @@ def test_binary_join_frame_is_closed_cleanly(new_room, client):
     room_id, _, _ = new_room()
     with client.websocket_connect(f"/ws/{room_id}") as ws:
         ws.send_bytes(b"\x00\x01")
-        with pytest.raises(Exception):
+        with pytest.raises(WebSocketDisconnect):
             ws.receive_json()
 
 
@@ -519,3 +520,96 @@ def test_client_ip_header_is_ignored_unless_configured(signup, client):
         assert _login(client, user["username"], "wrong-pass", ip=f"203.0.113.{i}").status_code == 401
     # Without CDJ_CLIENT_IP_HEADER the forged header changes nothing: same address, locked.
     assert _login(client, user["username"], "secret123", ip="198.51.100.4").status_code == 429
+
+
+def test_short_passwords_are_refused_at_signup(client):
+    r = client.post("/api/auth/signup", json={"username": "shortpw", "password": "1234567"})
+    assert r.status_code == 400 and "8 characters" in r.json()["detail"]
+
+
+def test_guest_cannot_take_a_registered_username(new_room, join, client):
+    room_id, token, user = new_room()
+    with join(room_id, token=token) as dj, client.websocket_connect(f"/ws/{room_id}") as ws:
+        ws.send_json({"type": "join", "client_id": "poser", "name": user["username"].upper()})
+        assert ws.receive_json()["you"]["name"] == "Mystery Guest"
+    with join(room_id, token=token) as dj, join(room_id) as guest:
+        guest.send(type="rename", name=user["username"])
+        assert "belongs to an account" in guest.until_error()
+
+
+def test_guest_dj_cannot_delete_the_room(new_room, join):
+    room_id, token, _ = new_room()
+    with join(room_id) as guest:
+        with join(room_id, token=token) as dj:
+            dj.send(type="leave")
+        guest.until_state(lambda s: s["dj_key"] == guest.key)
+        guest.send(type="delete_room")
+        assert "Log in to delete" in guest.until_error()
+
+
+def test_room_creation_is_rate_limited(signup, client):
+    token, _ = signup()
+    headers = {"Authorization": f"Bearer {token}"}
+    for _ in range(20):
+        assert client.post("/api/rooms", json={}, headers=headers).status_code == 200
+    assert client.post("/api/rooms", json={}, headers=headers).status_code == 429
+
+
+def test_flooding_gets_one_warning_per_burst(new_room, join):
+    room_id, token, _ = new_room()
+    with join(room_id, token=token) as dj:
+        for _ in range(60):
+            dj.send(type="rename", name="x")  # cheap no-op for an account: errors once each
+        time.sleep(0.5)  # let the bucket refill so the ping itself gets through
+        dj.send(type="ping", t=1)
+        dj.until(lambda m, _: m["type"] == "pong", limit=500)
+        assert dj.errors.count("Slow down a little.") <= 2
+
+
+def test_sockets_per_address_are_capped(new_room, client, monkeypatch):
+    from app import main
+
+    monkeypatch.setattr(main, "MAX_SOCKETS_PER_ADDRESS", 2)
+    room_id, _, _ = new_room()
+    with client.websocket_connect(f"/ws/{room_id}"), client.websocket_connect(f"/ws/{room_id}"):
+        with pytest.raises(WebSocketDisconnect):
+            with client.websocket_connect(f"/ws/{room_id}"):
+                pass
+    with client.websocket_connect(f"/ws/{room_id}"):
+        pass  # slots are freed once sockets close
+
+
+def test_unread_outbox_is_bounded():
+    import asyncio
+
+    from app.room import MAX_OUTBOX, Client, Identity
+
+    async def run():
+        never = asyncio.Event()
+
+        async def stuck_send(msg):
+            await never.wait()
+
+        async def close():
+            pass
+
+        c = Client(Identity("g:x", "x"), stuck_send, close)
+        for i in range(MAX_OUTBOX * 3):
+            c.send({"n": i})
+        return c.closed, c._outbox.qsize()
+
+    closed, size = asyncio.run(run())
+    assert closed and size == 1
+
+
+def test_socket_loop_stops_once_client_is_dropped(new_room, join):
+    from app import main
+
+    room_id, token, _ = new_room()
+    with join(room_id, token=token) as dj, join(room_id) as guest:
+        room = main.rooms.get(room_id)
+        client = next(iter(room.members[guest.key].clients))
+        client.closed = True  # what an overflowing outbox does
+        for _ in range(30):  # flooding past the throttle must not keep it attached
+            guest.send(type="ping", t=1)
+        dj.until_state(lambda s: guest.key not in [m["key"] for m in s["members"]])

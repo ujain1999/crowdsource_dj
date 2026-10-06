@@ -29,6 +29,7 @@ log = logging.getLogger(__name__)
 
 ROLE_RANK = {"listener": 0, "mod": 1, "codj": 2, "dj": 3}
 ROLE_LABEL = {"listener": "listener", "mod": "moderator", "codj": "co-DJ", "dj": "DJ"}
+MAX_OUTBOX = 500  # queued messages for one connection before we give up on it
 SLOW_ACTIONS = {"add", "add_url", "refresh_suggestions"}
 VOTESKIP_RE = re.compile(r"(^|\s)/voteskip\b", re.IGNORECASE)
 ROOM_ID_LEN = 12
@@ -66,6 +67,9 @@ class Identity:
     @classmethod
     def for_guest(cls, client_id: str, name: str) -> "Identity":
         client_id = re.sub(r"[^A-Za-z0-9_-]", "", client_id or "")[:40] or secrets.token_hex(8)
+        name = clean_name(name)
+        if name and not guest_name_allowed(name):
+            name = ""
         # Keys are shown to everyone in the room, and the client id is what proves who a
         # guest is. Publishing a hash means nobody can copy a key to impersonate a guest.
         digest = hashlib.sha256(client_id.encode()).hexdigest()[:24]
@@ -74,6 +78,11 @@ class Identity:
 
 def clean_name(name: str | None) -> str:
     return re.sub(r"\s+", " ", (name or "")).strip()[:24]
+
+
+def guest_name_allowed(name: str) -> bool:
+    """Guests can't take a registered username, so nobody can pose as an account in chat."""
+    return db.get_user_by_name(name) is None
 
 
 class Client:
@@ -92,8 +101,17 @@ class Client:
         return self.identity.key
 
     def send(self, msg: dict) -> None:
-        if not self.closed:
-            self._outbox.put_nowait(msg)
+        if self.closed:
+            return
+        if self._outbox.qsize() >= MAX_OUTBOX:
+            # The other end isn't reading. Stop queueing (memory would grow without bound)
+            # and hang up as soon as the stuck send gives way.
+            self.closed = True
+            while not self._outbox.empty():
+                self._outbox.get_nowait()
+            self._outbox.put_nowait(None)
+            return
+        self._outbox.put_nowait(msg)
 
     def close_soon(self) -> None:
         self._outbox.put_nowait(None)
@@ -1057,6 +1075,8 @@ async def a_rename(room, client, member, msg):
     name = clean_name(msg.get("name"))
     if not name:
         raise ActionError("Pick a name with at least one character.")
+    if not guest_name_allowed(name):
+        raise ActionError("That name belongs to an account. Pick another one, or log in.")
     old = member.name
     member.identity.name = name
     for c in member.clients:
@@ -1090,6 +1110,9 @@ async def a_leave(room, client, member, msg):
 
 
 async def a_delete_room(room, client, member, msg):
+    # The booth can pass to a guest; deleting someone's room for good needs an account.
+    if member.identity.user_id is None:
+        raise ActionError("Log in to delete the room.")
     room.delete(member)
 
 

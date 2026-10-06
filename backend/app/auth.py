@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from . import db
 
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,24}$")
+MIN_PASSWORD_LENGTH = 8
 MAX_PASSWORD_LENGTH = 256
 
 
@@ -49,8 +50,8 @@ def signup(username: str, password: str) -> tuple[User, str]:
     username = (username or "").strip()
     if not USERNAME_RE.match(username):
         raise AuthError("Usernames are 3–24 characters: letters, numbers, dots, dashes or underscores.")
-    if len(password or "") < 6:
-        raise AuthError("Passwords need at least 6 characters.")
+    if len(password or "") < MIN_PASSWORD_LENGTH:
+        raise AuthError(f"Passwords need at least {MIN_PASSWORD_LENGTH} characters.")
     if len(password) > MAX_PASSWORD_LENGTH:
         raise AuthError(f"Passwords can be at most {MAX_PASSWORD_LENGTH} characters.")
     try:

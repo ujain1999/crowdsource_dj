@@ -1,11 +1,13 @@
 import asyncio
 import logging
+from collections import Counter
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.requests import HTTPConnection
 
 from . import auth, config, music
 from .ratelimit import SlidingWindow, TokenBucket
@@ -41,21 +43,23 @@ async def security_headers(request: Request, call_next):
     return response
 
 
-def _client_ip(request: Request) -> str:
+def _client_ip(conn: HTTPConnection) -> str:
     if config.CLIENT_IP_HEADER:
-        forwarded = request.headers.get(config.CLIENT_IP_HEADER, "").strip()
+        forwarded = conn.headers.get(config.CLIENT_IP_HEADER, "").strip()
         if forwarded:
             return forwarded[:64]
-    return request.client.host if request.client else "unknown"
+    return conn.client.host if conn.client else "unknown"
 
 
 # Brute-force protection. Failed logins are counted per account and address, so one person
 # guessing only locks themselves out, with a much higher per-account cap to slow guessing
-# spread over many addresses. Auth attempts and searches are also capped per address.
+# spread over many addresses. Per-address caps stay loose because everyone at a party is
+# often on the same Wi-Fi, and so shares one public address.
 failed_logins = SlidingWindow(limit=10, window=15 * 60)
 failed_logins_any_address = SlidingWindow(limit=100, window=60 * 60)
-auth_attempts = SlidingWindow(limit=30, window=60)
-searches = SlidingWindow(limit=60, window=60)
+auth_attempts = SlidingWindow(limit=60, window=60)
+searches = SlidingWindow(limit=300, window=60)
+room_creations = SlidingWindow(limit=20, window=60 * 60)
 
 
 # ---- auth ---------------------------------------------------------------------------------
@@ -133,6 +137,8 @@ def create_room(body: NewRoom | None = None, authorization: str | None = Header(
     user = current_user(authorization)
     if not user:
         raise HTTPException(401, "Log in to create a room. DJs need an account.")
+    if not room_creations.allow(str(user.id)):
+        raise HTTPException(429, "You've started a lot of rooms recently. Try again in a while.")
     room = rooms.create(user, body.name if body else None)
     return {"id": room.id, "pretty_id": pretty_room_id(room.id)}
 
@@ -173,10 +179,27 @@ async def search(q: str, request: Request):
 JOIN_TIMEOUT = 10
 MESSAGES_PER_SECOND = 5
 MESSAGE_BURST = 20
+MAX_SOCKETS_PER_ADDRESS = 100
+
+open_sockets: Counter[str] = Counter()
 
 
 @app.websocket("/ws/{raw_id}")
 async def room_socket(ws: WebSocket, raw_id: str):
+    ip = _client_ip(ws)
+    if open_sockets[ip] >= MAX_SOCKETS_PER_ADDRESS:
+        await ws.close(code=1013)  # before accept: the handshake is refused
+        return
+    open_sockets[ip] += 1
+    try:
+        await _room_socket(ws, raw_id)
+    finally:
+        open_sockets[ip] -= 1
+        if open_sockets[ip] <= 0:
+            del open_sockets[ip]
+
+
+async def _room_socket(ws: WebSocket, raw_id: str):
     await ws.accept()
     room_id = normalize_room_id(raw_id)
     room = rooms.get(room_id) if room_id else None
@@ -219,12 +242,18 @@ async def room_socket(ws: WebSocket, raw_id: str):
     client.send({"type": "state", "state": room.public_state()})
 
     limiter = TokenBucket(rate=MESSAGES_PER_SECOND, burst=MESSAGE_BURST)
+    warned = False
     try:
         while True:
             msg = await ws.receive_json()
+            if client.closed or room.deleted:
+                break
             if not limiter.allow():
-                client.send({"type": "error", "message": "Slow down a little."})
+                if not warned:  # once per burst, so a flood doesn't get a flood of replies
+                    client.send({"type": "error", "message": "Slow down a little."})
+                    warned = True
                 continue
+            warned = False
             if isinstance(msg, dict):
                 await room.handle(client, msg)
             if client.closed or room.deleted:

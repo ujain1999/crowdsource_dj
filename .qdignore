@@ -1,0 +1,6 @@
+# Kept off the server by qd deploy (rsync patterns). The image is built from the rest.
+backend/data/
+*.sqlite3*
+dev/
+frontend/dist/
+backend/.pytest_cache/

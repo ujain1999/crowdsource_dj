@@ -65,8 +65,10 @@ export default function AuthModal({ reason, onDone }: Props) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={6}
+            minLength={mode === 'signup' ? 8 : undefined}
+            maxLength={256}
           />
+          {mode === 'signup' && <span className="field-hint">At least 8 characters.</span>}
         </label>
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="modal-actions">

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useAuth } from '../lib/auth'
 import type { Role, RoomState } from '../lib/types'
 import Modal from './Modal'
 
@@ -13,6 +14,7 @@ export default function SettingsModal({ state, myRole, send, onClose }: Props) {
   const [name, setName] = useState(state.name)
   const [threshold, setThreshold] = useState(state.settings.skip_threshold)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const { user } = useAuth()
 
   const save = (e: FormEvent) => {
     e.preventDefault()
@@ -57,7 +59,9 @@ export default function SettingsModal({ state, myRole, send, onClose }: Props) {
       {myRole === 'dj' && (
         <div className="danger-zone">
           <p>Deleting the room ends the party for everyone and removes its queue and chat.</p>
-          {confirmDelete ? (
+          {!user ? (
+            <p className="field-hint">Log in to delete the room.</p>
+          ) : confirmDelete ? (
             <div className="modal-actions" style={{ justifyContent: 'flex-start' }}>
               <button className="btn btn-danger" onClick={() => send({ type: 'delete_room' })}>
                 Yes, delete this room
