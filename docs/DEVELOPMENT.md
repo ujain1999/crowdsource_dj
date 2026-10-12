@@ -53,6 +53,28 @@ the next one.
 (clients also report "ended" as a backup), so a room keeps playing even if the DJ's tab is
 closed. When the queue runs out, the top suggestion is promoted into the queue.
 
+**Links from other services.** Pasting a song, album or playlist link from another service
+reads its songs (`backend/app/links.py`) and finds each one on YouTube Music, picking the
+result whose title, artist and length match best and skipping versions nobody asked for
+(karaoke, covers, remixes…). Up to 50 songs are taken from one link. No accounts or API keys
+are needed: the readers use the same public pages, embeds and web APIs each service shows its
+own visitors and link previews, so a service redesigning its site can break its reader.
+
+| Service | Songs | Albums | Playlists |
+|---|---|---|---|
+| Spotify | ✓ | ✓ | ✓ |
+| Apple Music / iTunes | ✓ | ✓ | ✓ |
+| Amazon Music | ✓ | ✓ (found by name) | needs sign-in |
+| TIDAL | ✓ | ✓ | ✓ |
+| Qobuz | ✓ | ✓ | ✓ |
+| JioSaavn | ✓ | ✓ | ✓ |
+| Gaana | ✓ | ✓ | ✓ |
+| Wynk | by the name in the link | | |
+| Genius | ✓ (uses Genius's own YouTube link when it has one) | ✓ (found by name) | |
+| AZLyrics | ✓ (falls back to the names in the link) | | |
+| Last.fm | ✓ (names in the link) | ✓ (found by name) | |
+| Musixmatch | ✓ (names in the link) | ✓ (found by name) | |
+
 **Suggestions** come from YouTube Music's free "radio" mix for songs in the queue. The DJ crew
 can refresh them for a fresh batch, drop individual ones, and anyone can pull one into the queue.
 

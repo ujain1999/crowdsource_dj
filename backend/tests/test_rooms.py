@@ -152,6 +152,8 @@ def test_add_url(new_room, join):
         dj.send(type="add_url", url="https://youtu.be/ccccccccccc")
         s = dj.until_state(lambda s: len(s["queue"]) == 4)
         assert s["queue"][-1]["video_id"] == "ccccccccccc"
+        dj.send(type="add_url", url="https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT")
+        s = dj.until_state(lambda s: len(s["queue"]) == 6)
         dj.send(type="add_url", url="https://example.com/song")
         assert "youtube" in dj.until_error().lower()
 

@@ -23,7 +23,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
-from . import auth, config, db, music
+from . import auth, config, db, links, music
 
 log = logging.getLogger(__name__)
 
@@ -175,6 +175,7 @@ class Room:
         self.auto_paused = False                 # paused because the room emptied
         self.suggestions: list[dict] = []
         self.suggestions_loading = False
+        self.fetching_links: set[str] = set()    # member keys with a pasted link being read
         self.chat: deque = deque(maxlen=config.CHAT_HISTORY)
         self.polls: dict[str, dict] = {}
         self.banned: dict[str, float] = {}
@@ -594,13 +595,18 @@ class Room:
     def _is_idle(self) -> bool:
         return self.current_track() is None or self.finished
 
-    def add_tracks(self, tracks: list[dict], member: Member) -> None:
-        if not tracks:
-            return
+    def require_queue_space(self) -> int:
+        """How many more songs fit in the queue. Raises ActionError if none do."""
         upcoming = len(self.queue) - max(self.current, -1) - 1
         room_left = config.MAX_QUEUE_LENGTH - upcoming
         if room_left <= 0:
             raise ActionError(f"The queue is full ({config.MAX_QUEUE_LENGTH} songs). Wait for a few to play.")
+        return room_left
+
+    def add_tracks(self, tracks: list[dict], member: Member) -> None:
+        if not tracks:
+            return
+        room_left = self.require_queue_space()
         tracks = tracks[:room_left]
         was_idle = self._is_idle()
         first_new = len(self.queue)
@@ -861,14 +867,29 @@ async def a_add(room, client, member, msg):
 
 
 async def a_add_url(room, client, member, msg):
-    url = str(msg.get("url") or "")
+    url = str(msg.get("url") or "")[:2000]
     if not music.looks_like_url(url):
-        raise ActionError("Paste a youtube.com, music.youtube.com or youtu.be link.")
+        raise ActionError("Paste a link from YouTube, Spotify, Apple Music, or another music service.")
+    room.require_queue_space()
+    # One playlist can mean dozens of lookups, so read one link per person at a time.
+    if member.key in room.fetching_links:
+        raise ActionError("Still fetching your last link. Give it a moment.")
+    room.fetching_links.add(member.key)
     client.send({"type": "toast", "text": "Fetching that link…"})
-    tracks = await asyncio.to_thread(music.resolve, url)
+    try:
+        loop = asyncio.get_running_loop()
+        tracks, missed = await loop.run_in_executor(music.link_pool, music.resolve, url)
+    except links.LinkError as e:
+        raise ActionError(str(e))
+    finally:
+        room.fetching_links.discard(member.key)
+    if room.deleted or room.banned.get(member.key, 0) > time.time():
+        return  # removed while the link was being read
     if not tracks:
-        raise ActionError("Couldn't read that link. Is the video or playlist public?")
+        raise ActionError("Couldn't find those songs on YouTube. Is the link public?")
     room.add_tracks(tracks, member)
+    if missed:
+        client.send({"type": "toast", "text": f"Couldn't find {missed} of those songs on YouTube."})
 
 
 async def a_remove(room, client, member, msg):
