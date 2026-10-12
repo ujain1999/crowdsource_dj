@@ -30,3 +30,4 @@ MAX_CHAT_LENGTH = 500
 SUGGESTIONS_TARGET = 15
 MAX_QUEUE_LENGTH = 500
 MAX_SEARCH_LENGTH = 200
+MAX_PLAYLIST_ITEMS = 50  # songs taken from one pasted playlist or album

@@ -9,7 +9,10 @@ interface Props {
   onAdded: (title: string) => void
 }
 
-const URL_RE = /(^|[/.])(youtube\.com|youtu\.be|youtube-nocookie\.com)\//i
+// YouTube, plus the services the server can read songs from (backend/app/links.py). The
+// search API also says when a query is a link, which covers anything missing here.
+const URL_RE =
+  /(^|[/.])(youtube\.com|youtu\.be|youtube-nocookie\.com|open\.spotify\.com|play\.spotify\.com|spotify\.link|spotify\.app\.link|spoti\.fi|music\.apple\.com|itunes\.apple\.com|music\.amazon\.[a-z.]+|tidal\.com|qobuz\.com|jiosaavn\.com|saavn\.com|gaana\.com|wynk\.in|genius\.com|azlyrics\.com|last\.fm|lastfm\.[a-z.]+|musixmatch\.com)\/|^spotify:(track|album|playlist):/i
 
 export default function AddSong({ send, onAdded }: Props) {
   const [q, setQ] = useState('')
@@ -17,8 +20,9 @@ export default function AddSong({ send, onAdded }: Props) {
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const [added, setAdded] = useState<Set<string>>(new Set())
+  const [serverUrl, setServerUrl] = useState('') // a query the server recognised as a link
   const box = useRef<HTMLDivElement>(null)
-  const isUrl = URL_RE.test(q.trim())
+  const isUrl = URL_RE.test(q.trim()) || (serverUrl !== '' && serverUrl === q.trim())
 
   useEffect(() => {
     const query = q.trim()
@@ -33,7 +37,11 @@ export default function AddSong({ send, onAdded }: Props) {
     const id = setTimeout(() => {
       api
         .search(query)
-        .then((r) => !stale && setResults(r.results))
+        .then((r) => {
+          if (stale) return
+          if (r.is_url) setServerUrl(query)
+          setResults(r.results)
+        })
         .catch(() => !stale && setResults([]))
         .finally(() => !stale && setLoading(false))
     }, 350)
@@ -74,12 +82,12 @@ export default function AddSong({ send, onAdded }: Props) {
     <div className="add-song" ref={box} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
       <form className="add-song-row" onSubmit={submit}>
         <label className="sr-only" htmlFor="add-song-input">
-          Search for a song or paste a YouTube link
+          Search for a song or paste a link from YouTube, Spotify, Apple Music and more
         </label>
         <input
           id="add-song-input"
           className="add-input"
-          placeholder="Search songs, or paste a YouTube link"
+          placeholder="Search songs, or paste a YouTube, Spotify or Apple Music link"
           value={q}
           autoComplete="off"
           onChange={(e) => {

@@ -253,7 +253,7 @@ export default function Stage({ state, canControl, send, serverNow, showVideo }:
             <p className="now-meta">Picked by {track.added_by}</p>
           </>
         ) : (
-          <p className="now-artist">Search for a song or paste a YouTube link below.</p>
+          <p className="now-artist">Search for a song or paste a link from YouTube, Spotify and more below.</p>
         )}
 
         <div className="progress">

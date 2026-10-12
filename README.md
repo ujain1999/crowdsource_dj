@@ -10,6 +10,9 @@ Start a room, send the code to your friends, and listen together. Because music 
 
 **Supports Playlists | Song Suggestions | Chat | Voteskip | Sync**
 
+Paste songs and playlists from YouTube, Spotify, Apple Music, Amazon Music, TIDAL, Qobuz,
+JioSaavn, Gaana and more. Everything plays through YouTube, so nobody needs a subscription.
+
 ## How it works
 
 1. **Start a room.** You're the DJ. You get a code like `TZSS-WNHM-VJNO`.
